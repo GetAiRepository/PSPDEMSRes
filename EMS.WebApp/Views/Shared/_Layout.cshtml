@@ -1,0 +1,388 @@
+﻿@* <!DOCTYPE html> *@
+@* <html lang="en"> *@
+@* <head> *@
+@*     <meta charset="utf-8" /> *@
+@*     <meta name="viewport" content="width=device-width, initial-scale=1.0" /> *@
+@*     <title>@ViewData["Title"] - EMS.WebApp</title> *@
+@*     <link rel="stylesheet" href="~/lib/bootstrap/css/bootstrap.min.css" /> *@
+@*     <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" /> *@
+@*     <link rel="stylesheet" href="~/EMS.WebApp.styles.css" asp-append-version="true" /> *@
+@* </head> *@
+@* <body> *@
+@*     <header> *@
+@*         <nav class="navbar navbar-expand-sm navbar-toggleable-sm navbar-light bg-white border-bottom box-shadow mb-3"> *@
+@*             <div class="container-fluid"> *@
+@*                 <a class="navbar-brand" asp-area="" asp-controller="Home" asp-action="Index">EMS.WebApp</a> *@
+@*                 <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target=".navbar-collapse" aria-controls="navbarSupportedContent" *@
+@*                         aria-expanded="false" aria-label="Toggle navigation"> *@
+@*                     <span class="navbar-toggler-icon"></span> *@
+@*                 </button> *@
+@*                 <div class="navbar-collapse collapse d-sm-inline-flex justify-content-between"> *@
+@*                     <ul class="navbar-nav flex-grow-1"> *@
+@*                         <li class="nav-item"> *@
+@*                             <a class="nav-link text-dark" asp-area="" asp-controller="Home" asp-action="Index">Home</a> *@
+@*                         </li> *@
+@*                         <li class="nav-item"> *@
+@*                             <a class="nav-link text-dark" asp-area="" asp-controller="Home" asp-action="Privacy">Privacy</a> *@
+@*                         </li> *@
+@*                     </ul> *@
+@*                     <partial name="_LoginPartial" /> *@
+@*                 </div> *@
+@*             </div> *@
+@*         </nav> *@
+@*     </header> *@
+@*     <div class="container"> *@
+@*         <main role="main" class="pb-3"> *@
+@*             @RenderBody() *@
+@*         </main> *@
+@*     </div> *@
+
+@*     <footer class="border-top footer text-muted"> *@
+@*         <div class="container"> *@
+@*             &copy; 2025 - EMS.WebApp - <a asp-area="" asp-controller="Home" asp-action="Privacy">Privacy</a> *@
+@*         </div> *@
+@*     </footer> *@
+@*     <script src="~/lib/jquery/dist/jquery.min.js"></script> *@
+@*     <script src="~/lib/bootstrap/js/bootstrap.bundle.min.js"></script> *@
+@*     <script src="~/js/site.js" asp-append-version="true"></script> *@
+@*     @await RenderSectionAsync("Scripts", required: false) *@
+@* </body> *@
+@* </html> *@
+
+@using Microsoft.AspNetCore.Authentication
+@using Microsoft.AspNetCore.Authorization
+@using System.Security.Claims
+@inject IAuthorizationService AuthorizationService
+@using Microsoft.AspNetCore.Identity
+@inject IHttpContextAccessor HttpContextAccessor
+@using EMS.WebApp.Authorization
+@using EMS.WebApp.Data
+
+@using EMS.WebApp.Services
+@inject IMenuService MenuService
+
+@{
+    // Get the current user's name (adjust based on your authentication setup)
+    var userName = User.Identity.Name ?? User.FindFirst("name")?.Value ?? "";
+
+    // Get grouped menu items
+    var groupedMenus = await MenuService.GetGroupedMenuItemsForUserAsync(userName);
+}
+
+@* @{
+    var username = HttpContextAccessor.HttpContext?.User?.Identity?.Name ?? "Guest";
+    ViewData["Title"] = ViewData["Title"] ?? "EMS";
+    var hideLayoutElements = ViewData["HideLayoutElements"] as bool? ?? false;
+} *@
+@{
+    var allowedScreens = ViewBag.AllowedScreens as List<MenuItemViewModel>;
+}
+@functions {
+    public string InsertSpaceBeforeCapsAfterSecondIndex(string input)
+    {
+        if (string.IsNullOrEmpty(input) || input.Length <= 2)
+            return input;
+        var result = new System.Text.StringBuilder();
+        result.Append(input[0]);
+        result.Append(input[1]);
+        for (int i = 2; i < input.Length; i++)
+        {
+            char c = input[i];
+            if (char.IsUpper(c))
+            {
+                result.Append(' ');
+            }
+            result.Append(c);
+        }
+        return result.ToString();
+    }
+}
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <title>@ViewData["Title"] | EMS</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <!-- Local Bootstrap CSS -->
+    <link rel="stylesheet" href="~/lib/bootstrap/css/bootstrap.min.css" />
+    
+    <link href="~/css/site.css" rel="stylesheet" />
+
+
+
+    <link rel="stylesheet" href="~/css/jquery-ui-1.13.2.css">
+    
+    <partial name="_ValidationScriptsPartial" />
+</head>
+<body>
+    <!-- ===== Header ===== -->
+    
+        <header class="app-header d-flex align-items-center justify-content-between">
+            <div class="d-flex align-items-center gap-3">
+                <a class="navbar-brand d-flex align-items-center gap-2" href="/">
+                    <img src="~/images/logo_itc.png" alt="Logo" style="height:32px" />
+                    EMS
+                </a>
+                <ul class="nav top-nav d-none d-md-flex">
+                    <li class="nav-item"><a class="nav-link" asp-controller="Home" asp-action="Index">Dashboard</a></li>
+                    <li class="nav-item dropdown">
+                    @* <a class="nav-link dropdown-toggle" href="#" data-bs-toggle="dropdown">Masters</a> *@
+                    <!-- Masters Menu -->
+                    @if (groupedMenus.ContainsKey("Masters") && groupedMenus["Masters"].Any())
+                    {
+                        <div class="nav-item dropdown">
+                            <a class="nav-link dropdown-toggle" href="#" id="mastersDropdown" role="button"
+                               data-bs-toggle="dropdown" aria-expanded="false">
+                                <i class="fas fa-cog"></i> Masters
+                            </a>
+                            <ul class="dropdown-menu" aria-labelledby="mastersDropdown" style="background:#fff !important;">
+                                @foreach (var item in groupedMenus["Masters"])
+                                {
+                                    string screenName = item.ScreenName;
+
+                                    if (screenName.Contains("SysAttachScreenRole"))
+                                    {
+                                        screenName = screenName.Replace("SysAttachScreenRole", "Role Mapping");
+                                    }
+                                    if (screenName.Contains("Hr"))
+                                    {
+                                        screenName = screenName.Replace("Hr", "");
+                                    }
+                                    if (screenName.Contains("Med"))
+                                    {
+                                        screenName = screenName.Replace("Med", "Medicine ");
+                                    }
+                                    if (screenName.Contains("System"))
+                                    {
+                                        screenName = screenName.Replace("System", "");
+                                    }
+                                    if (screenName.Contains("Sys"))
+                                    {
+                                        screenName = screenName.Replace("Sys", "");
+                                    }
+                                    if (!screenName.Contains("Master") && !screenName.Contains("Base") && screenName != "Role Mapping")
+                                    {
+                                        screenName = screenName + " Master";
+                                    }
+                                    screenName = InsertSpaceBeforeCapsAfterSecondIndex(screenName);
+                                    screenName = screenName.Trim();
+                                    <li>
+                                        <a class="dropdown-item"
+                                           href="@Url.Action(item.ActionName, item.ControllerName)">
+                                            @screenName
+                                        </a>
+                                    </li>
+                                }
+                            </ul>
+                        </div>
+                    }
+
+                    </li>
+                    <li class="nav-item dropdown">
+                        @* <a class="nav-link dropdown-toggle" href="#" data-bs-toggle="dropdown">Transactions</a>
+                        <ul class="dropdown-menu border-0 shadow glass" style="background:#fff !important;">
+                            <li><a class="dropdown-item" asp-controller="LoginReports" asp-action="Index">Login Reports</a></li> 
+                            <li><a class="dropdown-item" asp-controller="EmployeeHealthProfile" asp-action="Index">Employee Health Profile</a></li>
+                            <li><a class="dropdown-item" asp-controller="StoreIndent" asp-action="Index">Store Indent</a></li>
+                            <li><a class="dropdown-item" asp-controller="CompounderIndent" asp-action="Index">Compounder Indent</a></li>
+                            <li><a class="dropdown-item" asp-controller="DoctorDiagnosis" asp-action="Index">Doctor Diagnosis</a></li>
+                            <li><a class="dropdown-item" asp-controller="OthersDiagnosis" asp-action="Index">Doctor Diagnosis - Others</a></li>
+                            <li><a class="dropdown-item" asp-controller="ExpiredMedicine" asp-action="Index">Expired Medicines</a></li>
+                        </ul>*@
+                    @if (groupedMenus.ContainsKey("Transactions") && groupedMenus["Transactions"].Any())
+                    {
+                        <div class="nav-item dropdown">
+                            <a class="nav-link dropdown-toggle" href="#" id="transactionsDropdown" role="button"
+                               data-bs-toggle="dropdown" aria-expanded="false">
+                                <i class="fas fa-exchange-alt"></i> Transactions
+                            </a>
+                            <ul class="dropdown-menu" aria-labelledby="transactionsDropdown" style="background:#fff !important;">
+                                @foreach (var item in groupedMenus["Transactions"])
+                                {
+                                    string screenName = item.ScreenName;
+
+                                    if (screenName.Contains("OthersDiagnosis"))
+                                    {
+                                        screenName = screenName.Replace("OthersDiagnosis", "Doctor Diagnosis - Others");
+                                    }
+                                   
+                                    screenName = InsertSpaceBeforeCapsAfterSecondIndex(screenName);
+                                    screenName = screenName.Trim();
+                                    <li>
+                                        <a class="dropdown-item"
+                                           href="@Url.Action(item.ActionName, item.ControllerName)">
+                                            @screenName
+                                        </a>
+                                    </li>
+                                }
+                            </ul>
+                        </div>
+                    }
+                    </li>
+                    <li class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle" href="#" data-bs-toggle="dropdown">Reports</a>
+                        <ul class="dropdown-menu border-0 shadow glass" style="background:#fff !important;">
+                                <li><a class="dropdown-item" href="@Url.Action("CompounderIndentReportView", "CompounderIndent")">Compounder Indent Report</a></li>
+                                <li><a class="dropdown-item" href="@Url.Action("CompounderInventoryReportView", "CompounderIndent")">Compounder Inventory Report</a></li>
+                                <li><a class="dropdown-item" href="@Url.Action("StoreIndentReportView", "StoreIndent")">Store Indent Report</a></li>
+                                <li><a class="dropdown-item" href="@Url.Action("StoreInventoryReportView", "StoreIndent")">Store Inventory Report</a></li>
+                                @*<li><a class="dropdown-item" asp-controller="OthersDiagnosis" asp-action="Index">Doctor Diagnosis - Others</a></li>
+                                <li><a class="dropdown-item" asp-controller="ExpiredMedicine" asp-action="Index">Expired Medicines</a></li> *@
+                        </ul>
+                    </li>
+                   
+                </ul>
+            </div>
+            <div class="d-flex align-items-center gap-2">
+                <form class="d-none d-lg-block">
+                    <input type="search" class="form-control form-control-sm glass border-0" placeholder="Search…" style="min-width:220px" />
+                </form>
+                <button class="btn btn-sm btn-outline-primary d-md-none" data-bs-toggle="offcanvas" data-bs-target="#sidebarMenu">
+                    <i class="bi bi-list"></i>
+                </button>
+                <div class="dropdown">
+                    <a class="nav-link dropdown-toggle d-flex align-items-center" href="#" data-bs-toggle="dropdown">
+                        <i class="bi bi-person-circle fs-5"></i>
+                        <span class="d-none d-sm-inline ms-1">@userName</span>
+                    </a>
+
+                    <ul class="dropdown-menu dropdown-menu-end glass border-0 shadow" style="background:#fff !important;">
+                        @* <li><a class="dropdown-item" asp-controller="Account" asp-action="Profile">Profile</a></li>
+                        @* <li><a class="dropdown-item" asp-controller="Account" asp-action="Settings">Settings</a></li> *@
+                        @* <li><hr class="dropdown-divider" /></li> *@
+                        @* <li><a class="dropdown-item" asp-controller="Account" asp-action="Logout">Logout</a></li> *@
+                        @if (User.Identity != null && User.Identity.IsAuthenticated)
+                        {
+                            <li class="dropdown-item">
+                                <span class="nav-link text-info">Welcome, @User.Identity.Name</span>
+                            </li>
+                            <li class="dropdown-item">
+                                <form asp-controller="Account" asp-action="Logout" method="post" class="form-inline">
+                                    <button type="submit" class="nav-link btn btn-link">Logout</button>
+                                </form>
+                            </li>
+                        }
+                        else
+                        {
+                            <li class="dropdown-item">
+                                <a class="nav-link" asp-controller="Account" asp-action="Login">Login</a>
+                            </li>
+                        }
+                    </ul>
+                </div>
+            </div>
+        </header>
+   
+    
+
+    <!-- ===== Sidebar (mobile only) ===== -->
+    <div class="offcanvas offcanvas-start" tabindex="-1" id="sidebarMenu">
+        <div class="offcanvas-header">
+            <h5 class="offcanvas-title">Navigation</h5>
+            <button type="button" class="btn-close btn-close-white" data-bs-dismiss="offcanvas"></button>
+        </div>
+        <div class="offcanvas-body p-0 sidebar">
+            <nav class="px-2">
+                <ul class="nav flex-column small">
+                    <li class="nav-item"><a class="nav-link" asp-controller="Home" asp-action="Index"><i class="bi bi-speedometer2"></i> Dashboard</a></li>
+                    <li class="nav-item">
+                        <a class="nav-link d-flex justify-content-between align-items-center" data-bs-toggle="collapse" href="#mMenu">
+                            <span><i class="bi bi-card-list me-2"></i>Masters</span><i class="bi bi-chevron-down small"></i>
+                        </a>
+                        <div class="collapse" id="mMenu">
+                            <ul class="nav flex-column ms-3 my-1">
+                                <li class="nav-item"><a class="nav-link" asp-controller="UserMaster" asp-action="Index">User Master</a></li>
+                                <li class="nav-item"><a class="nav-link" asp-controller="DoctorMaster" asp-action="Index">Doctor Master</a></li>
+                            </ul>
+                        </div>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link d-flex justify-content-between align-items-center" data-bs-toggle="collapse" href="#rMenu">
+                            <span><i class="bi bi-bar-chart me-2"></i>Reports</span><i class="bi bi-chevron-down small"></i>
+                        </a>
+                        <div class="collapse" id="rMenu">
+                            <ul class="nav flex-column ms-3 my-1">
+                                <li class="nav-item"><a class="nav-link" asp-controller="LoginReports" asp-action="Index">Login Reports</a></li>
+                                <li class="nav-item"><a class="nav-link" asp-controller="MedicineIssueReports" asp-action="Index">Medicine Issue Reports</a></li>
+                            </ul>
+                        </div>
+                    </li>
+                </ul>
+            </nav>
+        </div>
+    </div>
+
+    <!-- ===== Main Content ===== -->
+    <main class="container-fluid">
+        <div class="content-wrapper">
+            <div class="glass p-4 shadow-sm">
+                <h2 class="h4 mb-3">@ViewData["Title"]</h2>
+                <div id="alertPlaceholder" class="mb-3"></div>
+
+                @RenderBody()
+            </div>
+        </div>
+    </main>
+
+    <footer class="glass position-fixed bottom-0 start-50 translate-middle-x w-100">
+        &copy; 2025 ITC Limited • Powered by GetAI
+    </footer>
+
+    <!-- JS -->
+    <script src="~/lib/jquery/dist/jquery.min.js"></script> 
+    <script src="~/lib/bootstrap/js/bootstrap.bundle.min.js"></script>
+    <script src="~/lib/datatables/js/datatables.min.js"></script>
+
+    <script src="~/js/site.js"></script>
+
+   
+    @RenderSection("Scripts", required: false)
+</body>
+</html>
+<script>
+    
+    function showAlert(type, message) {
+        // You can use toastr, bootstrap alerts, or your preferred notification system
+        if (typeof toastr !== 'undefined') {
+            toastr[type](message);
+        } else {
+            // Fallback to basic alert
+            alert(message);
+        }
+    }
+<script>
+
+    // Ping server every 15 seconds to check session validity
+    setInterval(() => {
+        fetch('/session/check', {
+            method: 'GET',
+            credentials: 'same-origin'
+        }).then(res => {
+            if (res.status === 401 || res.redirected) {
+                console.log("Session invalidated. Redirecting...");
+                window.location.href = '/Account/LogoutView?reason=SessionExpired';
+            }
+        }).catch(err => {
+            console.warn("Session check failed. Forcing logout.");
+            window.location.href = '/Account/LogoutView?reason=SessionExpired';
+        });
+    }, 15000); // check every 15 seconds
+</script>
+<script>
+    document.addEventListener('contextmenu', function (e) {
+        e.preventDefault();
+    });
+</script>
+
+<script>
+    if (localStorage.getItem("tabOpen")) {
+        //alert("Application is already open in another tab."); 
+        window.location.href = "/Account/LogoutView";
+    } else {
+        localStorage.setItem("tabOpen", "true");
+        window.addEventListener("beforeunload", function () {
+            localStorage.removeItem("tabOpen");
+        });
+    }
+</script>

@@ -1,0 +1,64 @@
+﻿@{
+    Layout = null;
+    ViewData["Title"] = "Active Session";
+}
+@*  @{
+    ViewData["Title"] = "Session Active";
+    var reason = Context.Request.Query["reason"].ToString();
+    var message = reason == "SessionExpired"
+        ? "You have been logged out because your account was accessed from another browser or tab."
+        : "You have been logged out.";
+} *@
+
+@* <h2>Session Expired</h2> *@
+@* <p>@message</p>
+<a href="/Account/Login">Login Again</a> *@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8" />
+    <title>@ViewData["Title"]</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', sans-serif;
+            background-color: #f4f4f4;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+        }
+
+        .card {
+            background: white;
+            padding: 2rem;
+            border-radius: 10px;
+            box-shadow: 0 2px 12px rgba(0, 0, 0, 0.1);
+            max-width: 400px;
+            text-align: center;
+        }
+
+        .btn {
+            background-color: #007bff;
+            color: white;
+            padding: 0.5rem 1rem;
+            text-decoration: none;
+            border-radius: 5px;
+            display: inline-block;
+            margin-top: 1rem;
+        }
+
+            .btn:hover {
+                background-color: #0056b3;
+            }
+    </style>
+</head>
+<body>
+    <div class="card">
+        <h2>@ViewData["Title"]</h2>
+        @* <p>@message</p> *@
+        @* <a href="/Account/Login" class="btn" target="_blank">Login Again</a> *@
+        <p>You have been logged out because your account was accessed from another browser or tab.</p>
+        <a href="/Account/Login" class="btn btn-primary" >Login Again</a>
+    </div>
+</body>
+</html>

@@ -1,0 +1,20 @@
+﻿@model EMS.WebApp.Data.SysRole
+
+<div class="row mb-3">
+
+    <div class="col-md-12">
+        <label class="form-label">Role Name</label>
+        <input class="form-control rounded-2" value="@Model.role_name" readonly />
+    </div>
+    <div class="col-md-12">
+        <label class="form-label">Desacription</label>
+        <textarea class="form-control rounded-2" rows="3" readonly>@Model.role_desc </textarea>
+    </div>
+
+</div>
+
+
+
+<div>
+    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+</div>

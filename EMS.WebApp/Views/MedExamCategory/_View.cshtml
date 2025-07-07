@@ -1,0 +1,33 @@
+﻿@model EMS.WebApp.Data.MedExamCategory
+
+<div class="row mb-3">
+    <div class="col-md-4">
+        <label class="form-label">ID</label>
+        <input class="form-control rounded-2" value="@Model.CatId" readonly />
+    </div>
+    <div class="col-md-8">
+        <label class="form-label">Name</label>
+        <input class="form-control rounded-2" value="@Model.CatName" readonly />
+    </div>
+</div>
+<div class="row mb-3">
+    <div class="col-md-2">
+        <label class="form-label">Freq</label>
+        <input class="form-control rounded-2" value="@Model.YearsFreq" readonly />
+    </div>
+    <div class="col-md-5">
+        <label class="form-label">Rule</label>
+        <input class="form-control rounded-2" value="@Model.AnnuallyRule" readonly />
+    </div>
+    <div class="col-md-5">
+        <label class="form-label">Schedule</label>
+        <input class="form-control rounded-2" value="@Model.MonthsSched" readonly />
+    </div>
+</div>
+<div class="mb-3">
+    <label class="form-label">Remarks</label>
+    <textarea class="form-control rounded-2 w-100" rows="2" readonly>@Model.Remarks</textarea>
+</div>
+<div class="text-end">
+    <button class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+</div>

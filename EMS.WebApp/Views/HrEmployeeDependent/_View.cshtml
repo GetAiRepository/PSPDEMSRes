@@ -1,0 +1,67 @@
+﻿@model EMS.WebApp.Data.HrEmployeeDependent
+
+<div class="row mb-3">
+    
+    <div class="col-md-4">
+        <label class="form-label">Employee Id</label>
+        <input class="form-control rounded-2" value="@Model.HrEmployee?.emp_name" readonly />
+    </div>
+    <div class="col-md-4">
+        <label class="form-label">Dependent Name</label>
+        <input class="form-control rounded-2" rows="3" value="@Model.dep_name" readonly />
+    </div>
+    <div class="col-md-4">
+        <label class="form-label">Dependent DOB</label>
+        <input class="form-control rounded-2" rows="3" value="@Model.dep_dob" readonly />
+    </div>
+   
+</div>
+<div class="row mb-3">
+    
+    <div class="col-md-4">
+        <label class="form-label">Relation</label>
+        <input class="form-control rounded-2" rows="3" value="@Model.relation" readonly />
+    </div>
+    <div class="col-md-4">
+        <label class="form-label">Gender</label>
+        @{
+            string genderDisplay = Model.gender == "M" ? "Male" :
+            Model.gender == "F" ? "Female" :
+            Model.gender == "O" ? "Other" : "";
+        }
+        <input class="form-control rounded-2" rows="3" value="@genderDisplay" readonly />
+    </div>
+    <div class="col-md-4">
+        <label class="form-label">Status </label>
+        <div class="d-flex justify-content-around align-items-center">
+            <div class="form-check">
+                <input class="form-check-input" type="radio" name="isActive" id="Active" value="Y" @(Model.is_active == true ? "checked" : "")>
+                <label class="form-check-label" for="Active">
+                    Active
+                </label>
+            </div>
+            <div class="form-check">
+                <input class="form-check-input" type="radio" name="isActive" id="NotActive" value="N" @(Model.is_active == false ? "checked" : "")>
+                <label class="form-check-label" for="NotActive">
+                    NotActive
+                </label>
+            </div>
+        </div>
+
+    </div>
+</div>
+<div class="row mb-3">
+    <div class="col-md-4">
+        <label class="form-label">Marital Status </label>
+        @{
+            string maritalStatus = Model.marital_status == true ? "Married" :
+            Model.marital_status == false ? "Single" : "";
+        }
+        <input class="form-control rounded-2" rows="3" value="@Model.marital_status" readonly />
+        
+    </div>
+
+</div>
+<div>
+    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+</div>

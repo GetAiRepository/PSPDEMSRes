@@ -1,0 +1,1560 @@
+﻿@model EMS.WebApp.Data.StoreIndent
+@{
+    bool isEdit = Model.IndentId > 0;
+    bool isStoreInventory = Model.Status == "Approved"; // Store Inventory context
+}
+
+@if (ViewBag.Error != null)
+{
+    <div class="alert alert-warning">
+        @ViewBag.Error
+    </div>
+}
+
+@if (ViewBag.Success != null)
+{
+    <div class="alert alert-success">
+        @ViewBag.Success
+    </div>
+}
+
+<form asp-action="@(Model.IndentId == 0 ? "Create" : "Edit")" method="post" id="storeIndentForm">
+    @Html.AntiForgeryToken()
+
+    <input asp-for="IndentId" type="hidden" />
+    @if (isEdit)
+    {
+        <input asp-for="CreatedDate" type="hidden" />
+        <input asp-for="CreatedBy" type="hidden" />
+    }
+
+    <!-- Hidden field to store medicines data -->
+    <input type="hidden" id="medicinesData" name="medicinesJson" />
+    <!-- Hidden field to store action type -->
+    <input type="hidden" id="actionType" name="actionType" value="submit" />
+
+    <!-- Auto-save status indicator -->
+    <div id="autoSaveStatus" class="alert alert-info" style="display:none;">
+        <i class="bi bi-info-circle me-1"></i>
+        <span id="autoSaveMessage">Saving as draft...</span>
+    </div>
+
+    <!-- Indent header info -->
+    <div class="row g-3 mb-3">
+        <div class="col-md-4 col-lg-3">
+            <label asp-for="IndentType" class="form-label">Indent Type <span class="text-danger">*</span></label>
+            @if (isStoreInventory)
+            {
+                <select asp-for="IndentType" class="form-select glass-input" id="indentTypeSelect" required disabled>
+                    <option value="">Select Indent Type</option>
+                    @if (ViewBag.IndentTypeList != null)
+                    {
+                        @foreach (var option in (List<SelectListItem>)ViewBag.IndentTypeList)
+                        {
+                            <option value="@option.Value">@option.Text</option>
+                        }
+                    }
+                </select>
+            }
+            else
+            {
+                <select asp-for="IndentType" class="form-select glass-input" id="indentTypeSelect" required>
+                    <option value="">Select Indent Type</option>
+                    @if (ViewBag.IndentTypeList != null)
+                    {
+                        @foreach (var option in (List<SelectListItem>)ViewBag.IndentTypeList)
+                        {
+                            <option value="@option.Value">@option.Text</option>
+                        }
+                    }
+                </select>
+            }
+            <span asp-validation-for="IndentType" class="text-danger"></span>
+        </div>
+
+        <div class="col-md-4 col-lg-3">
+            <label asp-for="IndentDate" class="form-label">Indent Raised Date <span class="text-danger">*</span></label>
+            @if (isStoreInventory)
+            {
+                <input asp-for="IndentDate" type="date" class="form-control glass-input" required readonly />
+            }
+            else
+            {
+                <input asp-for="IndentDate" type="date" class="form-control glass-input" required />
+            }
+            <span asp-validation-for="IndentDate" class="text-danger"></span>
+        </div>
+
+        <div class="col-md-4 col-lg-2">
+            <label class="form-label">Indent ID</label>
+            <input type="text" class="form-control glass-input" readonly value="@(isEdit? Model.IndentId.ToString() : "AUTO")" />
+        </div>
+
+        @if (isEdit)
+        {
+            <div class="col-md-4 col-lg-2">
+                <label asp-for="Status" class="form-label">Status</label>
+                @if (isStoreInventory)
+                {
+                    <select asp-for="Status" class="form-select glass-input" id="statusSelect" disabled>
+                        <option value="Pending">Pending</option>
+                        <option value="Approved">Approved</option>
+                        <option value="Rejected">Rejected</option>
+                    </select>
+                }
+                else
+                {
+                    <select asp-for="Status" class="form-select glass-input" id="statusSelect">
+                        <option value="Pending">Pending</option>
+                        <option value="Approved">Approved</option>
+                        <option value="Rejected">Rejected</option>
+                    </select>
+                }
+            </div>
+        }
+    </div>
+
+    <!-- Medicine validation messages -->
+    <div id="medicineValidationMessage" class="alert alert-warning" style="display:none;"></div>
+
+    <!-- Medicines table -->
+    <div class="d-flex justify-content-between align-items-center mb-2">
+        <h6 class="mb-0">Medicines</h6>
+        @if (!isStoreInventory)
+        {
+            <button type="button" class="btn btn-sm btn-outline-primary" id="btnAddMed">
+                <i class="bi bi-plus-lg"></i> Add Medicine
+            </button>
+        }
+    </div>
+
+    <div class="table-responsive mb-3">
+        <table id="tblMedIndent" class="table table-striped table-glass glass-table w-100 align-middle">
+            <thead>
+                <tr>
+                    <th style="width:60px">Sl.</th>
+                    <th style="width:220px">Medicine Name</th>
+                    <th>Company Name</th>
+                    <th style="width:120px">Vendor Code</th>
+                    <th style="width:100px">Raised Qty</th>
+                    <th style="width:100px">Received Qty</th>
+                    <th style="width:100px">Pending Qty</th>
+                    @* Show Batch No and Expiry Date columns only for Store Inventory *@
+                    @if (isStoreInventory)
+                    {
+                        <th style="width:100px">Batch No</th>
+                        <th style="width:120px">Expiry Date</th>
+                    }
+                    <th style="width:90px">Action</th>
+                </tr>
+            </thead>
+            <tbody id="medicineTableBody">
+                @if (Model.StoreIndentItems?.Any() == true)
+                {
+                    @for (int i = 0; i < Model.StoreIndentItems.Count; i++)
+                    {
+                        var item = Model.StoreIndentItems.ElementAt(i);
+                        <tr data-temp-id="@item.IndentItemId">
+                            <td>@(i + 1)</td>
+                            <td>@item.MedMaster?.MedItemName</td>
+                            <td>@(item.MedMaster?.CompanyName ?? "Not Defined")</td>
+                            <td>@item.VendorCode</td>
+                            <td>@item.RaisedQuantity</td>
+                            <td>@item.ReceivedQuantity</td>
+                            <td>@item.PendingQuantity</td>
+                            @if (isStoreInventory)
+                            {
+                                <td>@(item.BatchNo ?? "-")</td>
+                                <td>@(item.ExpiryDate?.ToString("dd/MM/yyyy") ?? "-")</td>
+                            }
+                            <td>
+                                @if (isStoreInventory)
+                                {
+                                    @if (item.PendingQuantity > 0)
+                                    {
+                                        <button class="btn btn-sm btn-secondary edit-medicine-inline" data-id="@item.IndentItemId" title="Update Item">
+                                            <i class="bi bi-pencil"></i> Edit
+                                        </button>
+                                    }
+                                    else
+                                    {
+                                        <button class="btn btn-sm btn-warning edit-medicine-with-reason" data-id="@item.IndentItemId" title="Edit with Reason">
+                                            <i class="bi bi-pencil-square"></i> Edit with Reason
+                                        </button>
+                                    }
+                                }
+                                else
+                                {
+                                    <button class="btn btn-sm btn-secondary edit-medicine me-1" data-temp-id="@item.IndentItemId" type="button" title="Edit">
+                                        Edit
+                                    </button>
+                                    <button class="btn btn-sm btn-danger delete-medicine" data-temp-id="@item.IndentItemId" type="button" title="Delete">
+                                        Del
+                                    </button>
+                                }
+                            </td>
+                        </tr>
+                    }
+                }
+                else
+                {
+                    <tr id="noMedicinesRow">
+                        <td colspan="@(isStoreInventory ? "10" : "8")" class="text-center text-muted">No medicines added yet.</td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+
+    <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+        @if (!isStoreInventory)
+        {
+            @if (Model.IndentId == 0 || Model.IndentType == "Draft Indent")
+            {
+                <!-- Show both Save and Submit for new items or drafts -->
+                <button type="submit" class="btn btn-outline-primary" id="saveBtn">
+                    <i class="bi bi-floppy me-1"></i>Save as Draft
+                </button>
+                <button type="submit" class="btn btn-primary" id="submitBtn">
+                    <i class="bi bi-check-circle me-1"></i>@(Model.IndentId == 0 ? "Submit" : "Submit Final")
+                </button>
+            }
+            else
+            {
+                <!-- Show only Submit for non-draft items -->
+                <button type="submit" class="btn btn-primary" id="submitBtn">
+                    <i class="bi bi-check-circle me-1"></i>Update
+                </button>
+            }
+        }
+    </div>
+</form>
+
+<!-- Edit Reason Modal for Store Inventory -->
+<div class="modal fade" id="editReasonModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Edit Medicine Item</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                @* <div class="card">
+                    <div class="card-header">
+                        <h6 class="card-title mb-0">Update Medicine Information</h6>
+                    </div>
+                    
+                </div> *@
+                <div class="card-body">
+                    <form id="editReasonForm">
+                        <input type="hidden" id="editItemId" />
+
+                        <!-- Medicine Details (Read-only) -->
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label class="form-label">Medicine Name</label>
+                                <input type="text" class="form-control" id="editMedicineName" readonly />
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">Company Name</label>
+                                <input type="text" class="form-control" id="editCompanyName" readonly />
+                            </div>
+                        </div>
+
+                        <div class="row mb-3">
+                            <div class="col-md-4">
+                                <label class="form-label">Vendor Code</label>
+                                <input type="text" class="form-control" id="editVendorCode" readonly />
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label">Raised Qty</label>
+                                <input type="number" class="form-control" id="editRaisedQty" readonly />
+                            </div>
+                        </div>
+
+                        <!-- Editable Fields -->
+                        <div class="row mb-3">
+                            <div class="col-md-4">
+                                <label class="form-label">Received Qty</label>
+                                <input type="number" class="form-control" id="editReceivedQty" min="0" />
+                                <div class="invalid-feedback"></div>
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label">Batch No</label>
+                                <input type="text" class="form-control" id="editBatchNo" maxlength="50" />
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label">Expiry Date</label>
+                                <input type="date" class="form-control" id="editExpiryDate" readonly />
+                            </div>
+                        </div>
+
+                        <!-- Reason for Edit -->
+                        <div class="row mb-3">
+                            <div class="col-12">
+                                <label class="form-label">Reason for Edit <span class="text-danger">*</span></label>
+                                <textarea class="form-control" id="editReason" rows="3"
+                                          placeholder="Please provide a reason for editing this item..." required></textarea>
+                                <div class="invalid-feedback"></div>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" id="saveEditChanges">
+                    <i class="bi bi-check-circle me-1"></i>Save Changes
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    $(document).ready(function() {
+        const isEdit = @(isEdit ? "true" : "false");
+        const isStoreInventory = @(isStoreInventory ? "true" : "false");
+        let indentId = @Model.IndentId;
+        let rowCounter = 1;
+        let allMedicines = []; // This will hold all medicines (existing + new)
+        let hasUnsavedChanges = false;
+        let isAutoSaving = false;
+        let formDataChangeTimeout;
+
+        // Medicine options - Build from server data
+        let medicineOptionsHtml = '<option value="">Select Medicine</option>';
+        @if (ViewBag.MedicineList != null)
+        {
+                                                    @foreach (var medicine in (SelectList)ViewBag.MedicineList)
+                                                    {
+                                                                    <text>medicineOptionsHtml += '<option value="@medicine.Value">@medicine.Text</option>';</text>
+                                                    }
+        }
+
+        // Track form changes for auto-save
+        function trackFormChanges() {
+            // Track changes in form fields
+            $('#storeIndentForm input, #storeIndentForm select').on('change input', function() {
+                if (!isAutoSaving) {
+                    hasUnsavedChanges = true;
+                    clearTimeout(formDataChangeTimeout);
+                    formDataChangeTimeout = setTimeout(function() {
+                        if (hasUnsavedChanges && !isAutoSaving) {
+                            autoSaveAsDraft();
+                        }
+                    }, 2000); // Auto-save 2 seconds after user stops making changes
+                }
+            });
+        }
+
+        // Auto-save as draft function
+        function autoSaveAsDraft() {
+            if (isAutoSaving || isStoreInventory) return;
+
+            // Don't auto-save if form is not valid for basic fields
+            const indentType = $('#indentTypeSelect').val();
+            const indentDate = $('input[name="IndentDate"]').val();
+
+            if (!indentType || !indentDate) {
+                return; // Don't auto-save if required fields are missing
+            }
+
+            isAutoSaving = true;
+            showAutoSaveStatus('Saving as draft...', 'info');
+
+            // Prepare form data
+            const formData = {
+                indentId: indentId,
+                indentType: 'Draft Indent',
+                indentDate: indentDate,
+                medicinesJson: JSON.stringify(allMedicines),
+                actionType: 'save'
+            };
+
+            // Choose the correct URL
+            const saveUrl = indentId === 0 ? '@Url.Action("Create", "StoreIndent")' : '@Url.Action("Edit", "StoreIndent")';
+
+            $.post(saveUrl, formData)
+            .done(function(response) {
+                if (response.success) {
+                    hasUnsavedChanges = false;
+
+                    // If this was a create operation, update to edit mode
+                    if (indentId === 0 && response.indentId) {
+                        indentId = response.indentId;
+                        $('input[name="IndentId"]').val(indentId);
+                        $('#storeIndentForm').attr('action', '@Url.Action("Edit", "StoreIndent")/' + indentId);
+
+                        // Update the indent ID display
+                        $('input[readonly][value="AUTO"]').val(indentId);
+                    }
+
+                    showAutoSaveStatus('Saved as draft automatically', 'success');
+                } else {
+                    showAutoSaveStatus('Auto-save failed', 'warning');
+                }
+            })
+            .fail(function() {
+                showAutoSaveStatus('Auto-save failed - network error', 'warning');
+            })
+            .always(function() {
+                isAutoSaving = false;
+                // Hide status after 3 seconds
+                setTimeout(function() {
+                    $('#autoSaveStatus').fadeOut();
+                }, 3000);
+            });
+        }
+
+        // Show auto-save status
+        function showAutoSaveStatus(message, type) {
+            const alertClass = type === 'success' ? 'alert-success' : type === 'warning' ? 'alert-warning' : 'alert-info';
+            $('#autoSaveStatus')
+                .removeClass('alert-info alert-success alert-warning')
+                .addClass(alertClass)
+                .show();
+            $('#autoSaveMessage').text(message);
+        }
+
+        // Auto-save when user tries to close browser/tab
+        window.addEventListener('beforeunload', function(e) {
+            if (hasUnsavedChanges && !isStoreInventory && !isAutoSaving) {
+                // Try to save quickly using sendBeacon for better reliability
+                const formData = new FormData();
+                formData.append('indentId', indentId);
+                formData.append('indentType', 'Draft Indent');
+                formData.append('indentDate', $('input[name="IndentDate"]').val());
+                formData.append('medicinesJson', JSON.stringify(allMedicines));
+                formData.append('actionType', 'save');
+
+                const saveUrl = indentId === 0 ? '@Url.Action("Create", "StoreIndent")' : '@Url.Action("Edit", "StoreIndent")';
+
+                // Use sendBeacon for more reliable saving on page unload
+                if (navigator.sendBeacon) {
+                    navigator.sendBeacon(saveUrl, formData);
+                } else {
+                    // Fallback for older browsers
+                    autoSaveAsDraft();
+                }
+
+                // Show the standard browser warning
+                e.preventDefault();
+                e.returnValue = 'You have unsaved changes. Are you sure you want to leave?';
+                return e.returnValue;
+            }
+        });
+
+        // Add Medicine Button Click with auto-save - FIXED VERSION
+        $('#btnAddMed').click(function() {
+            console.log('Add Medicine button clicked'); // Debug log
+            console.log('isStoreInventory:', isStoreInventory); // Debug log
+
+            if (!isStoreInventory) {
+                // Auto-save before adding medicine
+                if (hasUnsavedChanges || (indentId === 0 && $('#indentTypeSelect').val() && $('input[name="IndentDate"]').val())) {
+                    showAutoSaveStatus('Saving before adding medicine...', 'info');
+
+                    // Save first, then add medicine
+                    const formData = {
+                        indentId: indentId,
+                        indentType: 'Draft Indent',
+                        indentDate: $('input[name="IndentDate"]').val(),
+                        medicinesJson: JSON.stringify(allMedicines),
+                        actionType: 'save'
+                    };
+
+                    const saveUrl = indentId === 0 ? '@Url.Action("Create", "StoreIndent")' : '@Url.Action("Edit", "StoreIndent")';
+
+                    $.post(saveUrl, formData)
+                    .done(function(response) {
+                        if (response.success) {
+                            hasUnsavedChanges = false;
+
+                            // Update form state if it was a create operation
+                            if (indentId === 0 && response.indentId) {
+                                indentId = response.indentId;
+                                $('input[name="IndentId"]').val(indentId);
+                                $('#storeIndentForm').attr('action', '@Url.Action("Edit", "StoreIndent")/' + indentId);
+                                $('input[readonly][value="AUTO"]').val(indentId);
+                            }
+
+                            showAutoSaveStatus('Saved! Now you can add medicines.', 'success');
+
+                            // Now add the medicine row
+                            setTimeout(function() {
+                                addNewMedicineRow();
+                                $('#autoSaveStatus').fadeOut();
+                            }, 1000);
+                        } else {
+                            showAutoSaveStatus('Save failed. Please try again.', 'warning');
+                        }
+                    })
+                    .fail(function() {
+                        showAutoSaveStatus('Save failed - network error', 'warning');
+                    });
+                } else {
+                    // No need to save, just add medicine row
+                    console.log('Adding medicine row directly'); // Debug log
+                    addNewMedicineRow();
+                }
+            } else {
+                console.log('Blocked: Store Inventory mode'); // Debug log
+            }
+        });
+
+        // Auto-update Status based on Indent Type selection
+        $('#indentTypeSelect').change(function() {
+            if (isStoreInventory) return; // Don't allow changes in Store Inventory mode
+
+            const indentType = $(this).val();
+            const statusSelect = $('#statusSelect');
+
+            if (statusSelect.length > 0) { // Only if status dropdown exists (edit mode)
+                let status = 'Pending'; // Default
+
+                switch(indentType) {
+                    case 'Pending Indents':
+                        status = 'Pending';
+                        break;
+                    case 'Approved Indents':
+                        status = 'Approved';
+                        break;
+                    case 'Rejected Indents':
+                        status = 'Rejected';
+                        break;
+                    case 'Draft Indent':
+                        status = 'Draft';
+                        break;
+                }
+
+                statusSelect.val(status);
+                showValidationMessage(`Status automatically set to "${status}" based on Indent Type`, 'success');
+            }
+        });
+
+        // Handle Save vs Submit button clicks
+        $('#saveBtn').click(function(e) {
+            $('#actionType').val('save');
+            hasUnsavedChanges = false; // Prevent beforeunload warning
+        });
+
+        $('#submitBtn').click(function(e) {
+            $('#actionType').val('submit');
+            hasUnsavedChanges = false; // Prevent beforeunload warning
+        });
+
+        // FIXED: Add New Medicine Row Function
+        function addNewMedicineRow() {
+            console.log('addNewMedicineRow called'); // Debug log
+            console.log('medicineOptionsHtml:', medicineOptionsHtml); // Debug log
+
+            // Remove "no medicines" message - more robust selector
+            $('#medicineTableBody tr').each(function() {
+                if ($(this).find('td').text().includes('No medicines added yet')) {
+                    $(this).remove();
+                }
+            });
+
+            // Determine total columns based on context
+            const totalColumns = isStoreInventory ? 10 : 8;
+
+            // Build additional columns for Store Inventory
+            const additionalColumns = isStoreInventory ? `
+                <td>
+                    <input class="form-control form-control-sm glass-input batch-no-input" placeholder="Batch No" maxlength="50" />
+                </td>
+                <td>
+                    <input class="form-control form-control-sm glass-input expiry-date-input" type="date" min="${new Date().toISOString().split('T')[0]}" />
+                </td>` : '';
+
+            const newRow = `
+                <tr id="newRow${rowCounter}" class="editing-row">
+                    <td>${getNextSlNo()}</td>
+                    <td>
+                        <select class="form-select form-select-sm glass-input medicine-dropdown" required>
+                            ${medicineOptionsHtml}
+                        </select>
+                        <div class="invalid-feedback"></div>
+                    </td>
+                    <td>
+                        <input class="form-control form-control-sm glass-input company-input" readonly />
+                    </td>
+                    <td>
+                        <input class="form-control form-control-sm glass-input vendor-input" placeholder="Enter vendor code" required />
+                        <div class="invalid-feedback"></div>
+                    </td>
+                    <td>
+                        <input class="form-control form-control-sm glass-input raised-qty-input" type="number" min="1" placeholder="Raised Qty" required />
+                        <div class="invalid-feedback"></div>
+                    </td>
+                    <td>
+                        <input class="form-control form-control-sm glass-input received-qty-input" type="number" min="0" placeholder="Received Qty" value="0" />
+                    </td>
+                    <td>
+                        <input class="form-control form-control-sm glass-input pending-qty-display" readonly placeholder="Pending Qty" />
+                    </td>
+                    ${additionalColumns}
+                    <td>
+                        <button class="btn btn-sm btn-danger cancel-medicine" type="button" title="Delete">
+                            Del
+                        </button>
+                    </td>
+                </tr>`;
+
+            console.log('Appending new row to table'); // Debug log
+            $('#medicineTableBody').append(newRow);
+            rowCounter++;
+
+            console.log('New row added successfully'); // Debug log
+        }
+
+        function getNextSlNo() {
+            return $('#medicineTableBody tr:not(.editing-row)').length + 1;
+        }
+
+        // Medicine dropdown change - Get company name from server
+        $(document).on('change', '.medicine-dropdown', function() {
+            const row = $(this).closest('tr');
+            const medItemId = $(this).val();
+            const companyInput = row.find('.company-input');
+
+            if (medItemId) {
+                // Show loading state
+                companyInput.val('Loading...');
+
+                // Get medicine details from server
+                const medicineDetailsUrl = '@Url.Action("GetMedicineDetails", "StoreIndent")';
+                $.get(medicineDetailsUrl, { medItemId: medItemId })
+                    .done(function(result) {
+                        if (result.success) {
+                            companyInput.val(result.data.companyName);
+                        } else {
+                            companyInput.val('Not Defined');
+                        }
+                    })
+                    .fail(function() {
+                        companyInput.val('Not Defined');
+                    });
+            } else {
+                companyInput.val('');
+            }
+        });
+
+        // Auto-calculate pending quantity when raised or received quantity changes
+        $(document).on('change keyup', '.raised-qty-input, .received-qty-input', function() {
+            const row = $(this).closest('tr');
+            const raisedQty = parseInt(row.find('.raised-qty-input').val()) || 0;
+            const receivedQty = parseInt(row.find('.received-qty-input').val()) || 0;
+            const pendingQty = raisedQty - receivedQty;
+
+            row.find('.pending-qty-display').val(pendingQty >= 0 ? pendingQty : 0);
+        });
+
+        // Auto-add medicine when all required fields are filled (only for non-Store Inventory)
+        $(document).on('change blur', '.editing-row .medicine-dropdown, .editing-row .vendor-input, .editing-row .raised-qty-input', function() {
+            if (isStoreInventory) return; // Don't auto-add in Store Inventory mode
+
+            const row = $(this).closest('tr');
+
+            // Check if all required fields are filled
+            const medicineSelect = row.find('.medicine-dropdown');
+            const vendorInput = row.find('.vendor-input');
+            const raisedQtyInput = row.find('.raised-qty-input');
+
+            const medItemId = medicineSelect.val();
+            const vendorCode = vendorInput.val().trim();
+            const raisedQuantity = parseInt(raisedQtyInput.val());
+
+            if (medItemId && vendorCode && raisedQuantity > 0) {
+                // Auto-add the medicine
+                addMedicineToList(row);
+            }
+        });
+
+        function addMedicineToList(row) {
+            if (validateMedicineRow(row)) {
+                const medicineData = extractMedicineData(row);
+
+                // Add to allMedicines array
+                allMedicines.push(medicineData);
+
+                // Convert editing row to display row
+                convertToDisplayRow(row, medicineData);
+
+                // Update row numbers
+                updateRowNumbers();
+
+                // Mark as having changes for auto-save
+                hasUnsavedChanges = true;
+
+                showValidationMessage('Medicine added successfully!', 'success');
+            }
+        }
+
+        function validateMedicineRow(row) {
+            let isValid = true;
+            clearRowValidation(row);
+
+            const medicineSelect = row.find('.medicine-dropdown');
+            const vendorInput = row.find('.vendor-input');
+            const raisedQtyInput = row.find('.raised-qty-input');
+
+            const medItemId = medicineSelect.val();
+            const vendorCode = vendorInput.val().trim();
+            const raisedQuantity = parseInt(raisedQtyInput.val());
+
+            // Validate medicine selection
+            if (!medItemId || medItemId === '') {
+                showFieldError(medicineSelect, 'Please select a medicine');
+                isValid = false;
+            } else {
+                // Check for duplicate medicine
+                if (allMedicines.some(m => m.medItemId == medItemId)) {
+                    showFieldError(medicineSelect, 'This medicine is already added');
+                    isValid = false;
+                }
+            }
+
+            // Validate vendor code
+            if (!vendorCode || vendorCode === '') {
+                showFieldError(vendorInput, 'Please enter vendor code');
+                isValid = false;
+            } else {
+                // Check for duplicate vendor code
+                if (allMedicines.some(m => m.vendorCode.toLowerCase() === vendorCode.toLowerCase())) {
+                    showFieldError(vendorInput, 'This vendor code already exists');
+                    isValid = false;
+                }
+            }
+
+            // Validate raised quantity
+            if (!raisedQuantity || raisedQuantity <= 0) {
+                showFieldError(raisedQtyInput, 'Please enter valid raised quantity');
+                isValid = false;
+            }
+
+            return isValid;
+        }
+
+        function showFieldError(field, message) {
+            field.addClass('is-invalid');
+            field.siblings('.invalid-feedback').text(message);
+        }
+
+        function clearRowValidation(row) {
+            row.find('.is-invalid').removeClass('is-invalid');
+            row.find('.invalid-feedback').text('');
+        }
+
+        function extractMedicineData(row) {
+            const medicineSelect = row.find('.medicine-dropdown');
+            const vendorInput = row.find('.vendor-input');
+            const raisedQtyInput = row.find('.raised-qty-input');
+            const receivedQtyInput = row.find('.received-qty-input');
+
+            const medItemId = medicineSelect.val();
+            const medItemName = medicineSelect.find('option:selected').text();
+            const vendorCode = vendorInput.val().trim();
+            const raisedQuantity = parseInt(raisedQtyInput.val());
+            const receivedQuantity = parseInt(receivedQtyInput.val()) || 0;
+            const companyName = row.find('.company-input').val();
+
+            return {
+                tempId: (Date.now() + Math.random()).toString(), // Convert to string
+                medItemId: parseInt(medItemId), // Ensure it's a number
+                medItemName: medItemName,
+                companyName: companyName,
+                vendorCode: vendorCode,
+                raisedQuantity: raisedQuantity,  // Updated property name
+                receivedQuantity: receivedQuantity,  // New property
+                isNew: true
+            };
+        }
+
+        function convertToDisplayRow(row, medicineData) {
+            const pendingQty = medicineData.raisedQuantity - medicineData.receivedQuantity;
+            let actionButtons = '';
+
+            if (isStoreInventory) {
+                // For Store Inventory, show view/edit buttons based on pending quantity
+                actionButtons = `
+                    <button class="btn btn-sm btn-info view-medicine-item me-1" data-id="${medicineData.tempId}" title="View Details">
+                        View
+                    </button>`;
+                if (pendingQty > 0) {
+                    actionButtons += `
+                        <button class="btn btn-sm btn-secondary edit-medicine-item" data-id="${medicineData.tempId}" title="Update Item">
+                           Edit
+                        </button>`;
+                }
+            } else {
+                // For regular mode, show edit/delete buttons
+                actionButtons = `
+                    <button class="btn btn-sm btn-outline-warning edit-medicine me-1" data-temp-id="${medicineData.tempId}" type="button" title="Edit">
+                        Edit
+                    </button>
+                    <button class="btn btn-sm btn-outline-danger delete-medicine" data-temp-id="${medicineData.tempId}" type="button" title="Delete">
+                        Del
+                    </button>`;
+            }
+
+            // Build additional columns for Store Inventory
+            const additionalColumns = isStoreInventory ? `
+                <td>-</td>
+                <td>-</td>` : '';
+
+            let tableRow = `
+                <tr data-temp-id="${medicineData.tempId}">
+                    <td>${getNextSlNo()}</td>
+                    <td>${medicineData.medItemName}</td>
+                    <td>${medicineData.companyName}</td>
+                    <td>${medicineData.vendorCode}</td>
+                    <td>${medicineData.raisedQuantity}</td>
+                    <td>${medicineData.receivedQuantity}</td>
+                    <td>${pendingQty}</td>
+                    ${additionalColumns}
+                    <td>${actionButtons}</td>
+                </tr>`;
+
+            row.replaceWith(tableRow);
+        }
+
+        // Cancel medicine (remove editing row)
+        $(document).on('click', '.cancel-medicine', function() {
+            $(this).closest('tr').remove();
+            updateRowNumbers();
+
+            // If no rows left, show "no medicines" message
+            if ($('#medicineTableBody tr').length === 0) {
+                const totalColumns = isStoreInventory ? 10 : 8;
+                $('#medicineTableBody').append(`<tr><td colspan="${totalColumns}" class="text-center text-muted">No medicines added yet.</td></tr>`);
+            }
+        });
+
+        // Edit medicine (only for non-Store Inventory)
+        $(document).on('click', '.edit-medicine', function() {
+            if (isStoreInventory) return;
+
+            const tempId = $(this).data('temp-id');
+            const medicineData = allMedicines.find(m => m.tempId == tempId);
+
+            if (medicineData) {
+                // Remove from allMedicines array
+                allMedicines = allMedicines.filter(m => m.tempId != tempId);
+
+                // Convert back to editing row
+                convertToEditingRow($(this).closest('tr'), medicineData);
+
+                // Mark as having changes
+                hasUnsavedChanges = true;
+            }
+        });
+
+        function convertToEditingRow(row, medicineData) {
+            const pendingQty = medicineData.raisedQuantity - medicineData.receivedQuantity;
+            const editingRow = `
+                <tr class="editing-row">
+                    <td>${row.find('td:first').text()}</td>
+                    <td>
+                        <select class="form-select form-select-sm glass-input medicine-dropdown" required>
+                            ${medicineOptionsHtml}
+                        </select>
+                        <div class="invalid-feedback"></div>
+                    </td>
+                    <td>
+                        <input class="form-control form-control-sm glass-input company-input" readonly value="${medicineData.companyName}" />
+                    </td>
+                    <td>
+                        <input class="form-control form-control-sm glass-input vendor-input" placeholder="Enter vendor code" value="${medicineData.vendorCode}" required />
+                        <div class="invalid-feedback"></div>
+                    </td>
+                    <td>
+                        <input class="form-control form-control-sm glass-input raised-qty-input" type="number" min="1" placeholder="Raised Qty" value="${medicineData.raisedQuantity}" required />
+                        <div class="invalid-feedback"></div>
+                    </td>
+                    <td>
+                        <input class="form-control form-control-sm glass-input received-qty-input" type="number" min="0" placeholder="Received Qty" value="${medicineData.receivedQuantity}" />
+                    </td>
+                    <td>
+                        <input class="form-control form-control-sm glass-input pending-qty-display" readonly value="${pendingQty}" />
+                    </td>
+                    <td>
+                        <button class="btn btn-sm btn-danger cancel-medicine" type="button" title="Delete">
+                            Del
+                        </button>
+                    </td>
+                </tr>`;
+
+            const newRow = $(editingRow);
+            row.replaceWith(newRow);
+
+            // Set the selected medicine
+            newRow.find('.medicine-dropdown').val(medicineData.medItemId);
+        }
+
+        // Delete medicine (only for non-Store Inventory)
+        $(document).on('click', '.delete-medicine', function() {
+            if (isStoreInventory) return;
+
+            if (confirm('Are you sure you want to remove this medicine?')) {
+                const tempId = $(this).data('temp-id');
+
+                // Remove from allMedicines array
+                allMedicines = allMedicines.filter(m => m.tempId != tempId);
+                $(this).closest('tr').remove();
+
+                // Update row numbers
+                updateRowNumbers();
+
+                // Mark as having changes
+                hasUnsavedChanges = true;
+
+                // If no rows left, show "no medicines" message
+                if ($('#medicineTableBody tr').length === 0) {
+                    const totalColumns = isStoreInventory ? 10 : 8;
+                    $('#medicineTableBody').append(`<tr><td colspan="${totalColumns}" class="text-center text-muted">No medicines added yet.</td></tr>`);
+                }
+
+                showValidationMessage('Medicine removed successfully!', 'success');
+            }
+        });
+
+        // Update row numbers
+        function updateRowNumbers() {
+            $('#medicineTableBody tr:not(.editing-row)').each(function(index) {
+                if (!$(this).find('td:first').hasClass('text-center')) {
+                    $(this).find('td:first').text(index + 1);
+                }
+            });
+        }
+
+        // Show validation message
+        function showValidationMessage(message, type = 'warning') {
+            const alertClass = type === 'success' ? 'alert-success' : 'alert-warning';
+            $('#medicineValidationMessage')
+                .removeClass('alert-warning alert-success')
+                .addClass(alertClass)
+                .text(message)
+                .show();
+
+            // Auto hide after 3 seconds
+            setTimeout(function() {
+                $('#medicineValidationMessage').fadeOut();
+            }, 3000);
+        }
+
+        // Load existing medicines for edit mode
+        function loadExistingMedicines() {
+            if (!isEdit || allMedicines.length > 0) return; // Don't reload if already loaded
+
+            const getMedicineItemsUrl = '@Url.Action("GetMedicineItems", "StoreIndent")';
+            $.get(getMedicineItemsUrl, { indentId: indentId })
+                .done(function(result) {
+                    if (result.success && result.data.length > 0) {
+                        $('#medicineTableBody').empty();
+                        allMedicines = []; // Clear existing data
+
+                        $.each(result.data, function(index, item) {
+                            const medicineData = {
+                                tempId: item.indentItemId.toString(), // Convert to string
+                                indentItemId: item.indentItemId,
+                                medItemId: item.medItemId,
+                                medItemName: item.medItemName,
+                                companyName: item.companyName,
+                                vendorCode: item.vendorCode,
+                                raisedQuantity: item.raisedQuantity,  // Updated property name
+                                receivedQuantity: item.receivedQuantity,  // New property
+                                isNew: false // Mark as existing
+                            };
+
+                            allMedicines.push(medicineData);
+
+                            // Determine action buttons based on mode and pending quantity
+                            let actionButtons = '';
+                            if (isStoreInventory) {
+                                // For Store Inventory, check pending quantity to determine edit type
+                                if (item.pendingQuantity > 0) {
+                                    // Normal inline edit for items with pending quantity
+                                    actionButtons = `
+                                        <button class="btn btn-sm btn-secondary edit-medicine-inline" data-id="${medicineData.indentItemId}" title="Update Item">
+                                            <i class="bi bi-pencil"></i> Edit
+                                        </button>`;
+                                } else {
+                                    // Edit with reason for fully received items
+                                    actionButtons = `
+                                        <button class="btn btn-sm btn-warning edit-medicine-with-reason" data-id="${medicineData.indentItemId}" title="Edit with Reason">
+                                            <i class="bi bi-pencil-square"></i> Edit with Reason
+                                        </button>`;
+                                }
+                            } else {
+                                actionButtons = `
+                                    <button class="btn btn-sm btn-secondary edit-medicine me-1" data-temp-id="${medicineData.tempId}" type="button" title="Edit">
+                                        Edit
+                                    </button>
+                                    <button class="btn btn-sm btn-danger delete-medicine" data-temp-id="${medicineData.tempId}" type="button" title="Delete">
+                                        Del
+                                    </button>`;
+                            }
+
+                            // Build additional columns for Store Inventory
+                            const additionalColumns = isStoreInventory ? `
+                                <td>${item.batchNo || '-'}</td>
+                                <td>${item.expiryDate ? new Date(item.expiryDate).toLocaleDateString('en-GB') : '-'}</td>` : '';
+
+                            let tableRow = `
+                                <tr data-temp-id="${medicineData.tempId}">
+                                    <td>${index + 1}</td>
+                                    <td>${medicineData.medItemName}</td>
+                                    <td>${medicineData.companyName}</td>
+                                    <td>${medicineData.vendorCode}</td>
+                                    <td>${medicineData.raisedQuantity}</td>
+                                    <td>${medicineData.receivedQuantity}</td>
+                                    <td>${item.pendingQuantity}</td>
+                                    ${additionalColumns}
+                                    <td>${actionButtons}</td>
+                                </tr>`;
+
+                            $('#medicineTableBody').append(tableRow);
+                        });
+                    }
+                })
+                .fail(function(xhr, status, error) {
+                    console.error('Failed to load existing medicines:', status, error);
+                    showValidationMessage('Failed to load existing medicines.', 'warning');
+                });
+        }
+
+        // Handle edit medicine item inline (for Store Inventory mode)
+        $(document).on('click', '.edit-medicine-inline', function() {
+            if (!isStoreInventory) return;
+
+            const itemId = $(this).data('id');
+            const row = $(this).closest('tr');
+
+            console.log('Edit medicine inline clicked - itemId:', itemId);
+            // Convert row to edit mode with Store Inventory fields
+            convertStoreInventoryRowToEditMode(row, itemId);
+        });
+
+        // Handle edit medicine with reason (for fully received items)
+        $(document).on('click', '.edit-medicine-with-reason', function() {
+            const itemId = $(this).data('id');
+            const row = $(this).closest('tr');
+
+            console.log('Edit medicine with reason clicked - itemId:', itemId);
+            // Show the edit reason modal
+            showEditReasonModal(row, itemId);
+        });
+
+        function showEditReasonModal(row, itemId) {
+            console.log('showEditReasonModal called - itemId:', itemId);
+
+            // Extract data from the row
+            const medicineName = row.find('td:eq(1)').text().trim();
+            const companyName = row.find('td:eq(2)').text().trim();
+            const vendorCode = row.find('td:eq(3)').text().trim();
+            const raisedQty = parseInt(row.find('td:eq(4)').text()) || 0;
+            const currentReceivedQty = parseInt(row.find('td:eq(5)').text()) || 0;
+
+            // For Store Inventory, batch and expiry are in columns 7 and 8
+            let currentBatchNo = '';
+            let currentExpiryDate = '';
+
+            if (isStoreInventory) {
+                currentBatchNo = row.find('td:eq(7)').text().trim();
+                currentExpiryDate = row.find('td:eq(8)').text().trim();
+            }
+
+            console.log('Modal data:', { medicineName, companyName, vendorCode, raisedQty, currentReceivedQty, currentBatchNo, currentExpiryDate });
+
+            // Populate the modal
+            $('#editItemId').val(itemId);
+            $('#editMedicineName').val(medicineName);
+            $('#editCompanyName').val(companyName);
+            $('#editVendorCode').val(vendorCode);
+            $('#editRaisedQty').val(raisedQty);
+            $('#editReceivedQty').val(currentReceivedQty).attr('max', raisedQty);
+            $('#editBatchNo').val(currentBatchNo === '-' ? '' : currentBatchNo);
+
+            // Handle expiry date conversion
+            let expiryDateValue = '';
+            if (currentExpiryDate !== '-' && currentExpiryDate !== '') {
+                const dateParts = currentExpiryDate.split('/');
+                if (dateParts.length === 3) {
+                    expiryDateValue = `${dateParts[2]}-${dateParts[1].padStart(2, '0')}-${dateParts[0].padStart(2, '0')}`;
+                }
+            }
+            $('#editExpiryDate').val(expiryDateValue).attr('min', new Date().toISOString().split('T')[0]);
+
+            $('#editReason').val('');
+
+            // Clear any previous validation states
+            $('#editReasonForm .is-invalid').removeClass('is-invalid');
+            $('#editReasonForm .invalid-feedback').text('');
+
+            // Show the modal
+            $('#editReasonModal').modal('show');
+        }
+
+        // Auto-validate received quantity in the modal
+        $(document).on('input', '#editReceivedQty', function() {
+            const raisedQty = parseInt($('#editRaisedQty').val()) || 0;
+            const receivedQty = parseInt($(this).val()) || 0;
+
+            // Update validation for received quantity
+            if (receivedQty > raisedQty) {
+                $(this).addClass('is-invalid');
+                $(this).siblings('.invalid-feedback').text('Received quantity cannot exceed raised quantity.');
+            } else {
+                $(this).removeClass('is-invalid');
+                $(this).siblings('.invalid-feedback').text('');
+            }
+        });
+
+        // Save changes from the modal
+        $(document).on('click', '#saveEditChanges', function() {
+            const itemId = $('#editItemId').val();
+            const receivedQty = parseInt($('#editReceivedQty').val()) || 0;
+            const raisedQty = parseInt($('#editRaisedQty').val()) || 0;
+            const batchNo = $('#editBatchNo').val().trim();
+            const expiryDateValue = $('#editExpiryDate').val();
+            const reason = $('#editReason').val().trim();
+
+            console.log('Save changes clicked:', { itemId, receivedQty, raisedQty, batchNo, expiryDateValue, reason });
+
+            // Clear previous validation
+            $('#editReasonForm .is-invalid').removeClass('is-invalid');
+            $('#editReasonForm .invalid-feedback').text('');
+
+            let isValid = true;
+
+            // Validate received quantity
+            if (receivedQty > raisedQty) {
+                $('#editReceivedQty').addClass('is-invalid');
+                $('#editReceivedQty').siblings('.invalid-feedback').text('Received quantity cannot exceed raised quantity.');
+                isValid = false;
+            }
+
+            // Validate reason
+            if (!reason || reason.length < 10) {
+                $('#editReason').addClass('is-invalid');
+                $('#editReason').siblings('.invalid-feedback').text('Please provide a detailed reason (minimum 10 characters).');
+                isValid = false;
+            }
+
+            // Validate expiry date
+            if (expiryDateValue) {
+                const today = new Date();
+                today.setHours(0, 0, 0, 0);
+                const expiry = new Date(expiryDateValue);
+                expiry.setHours(0, 0, 0, 0);
+
+                if (expiry < today) {
+                    $('#editExpiryDate').addClass('is-invalid');
+                    $('#editExpiryDate').siblings('.invalid-feedback').text('Expiry date cannot be in the past.');
+                    isValid = false;
+                }
+            }
+
+            if (!isValid) {
+                console.log('Validation failed');
+                return;
+            }
+
+            // Disable button to prevent double submission
+            $(this).prop('disabled', true).html('<i class="spinner-border spinner-border-sm me-1"></i>Saving...');
+
+            // Prepare data object
+            const postData = {
+                indentItemId: itemId,
+                receivedQuantity: receivedQty,
+                batchNo: batchNo,
+                editReason: reason
+            };
+
+            if (expiryDateValue) {
+                postData.expiryDate = new Date(expiryDateValue).toISOString();
+            }
+
+            console.log('Sending AJAX request with data:', postData);
+
+            // Update via AJAX
+            $.post('@Url.Action("UpdateMedicineItemWithReason", "StoreIndent")', postData)
+            .done(function(response) {
+                console.log('AJAX response:', response);
+
+                if (response.success) {
+                    // Find and update the row in the table
+                    const row = $(`button[data-id="${itemId}"]`).closest('tr');
+
+                    if (row.length > 0) {
+                        row.find('td:eq(5)').text(response.data.receivedQuantity);
+                        row.find('td:eq(6)').html(`
+                            <span class="badge ${response.data.pendingQuantity > 0 ? 'bg-warning' : 'bg-success'}">
+                                ${response.data.pendingQuantity}
+                            </span>
+                        `);
+
+                        if (isStoreInventory) {
+                            row.find('td:eq(7)').text(response.data.batchNo || '-');
+                            row.find('td:eq(8)').text(
+                                response.data.expiryDate ?
+                                new Date(response.data.expiryDate).toLocaleDateString('en-GB') :
+                                '-'
+                            );
+
+                            // Update the action button based on new pending quantity
+                            const actionTd = row.find('td:last');
+                            if (response.data.pendingQuantity > 0) {
+                                actionTd.html(`
+                                    <button class="btn btn-sm btn-secondary edit-medicine-inline" data-id="${itemId}" title="Update Item">
+                                        <i class="bi bi-pencil"></i> Edit
+                                    </button>
+                                `);
+                            } else {
+                                actionTd.html(`
+                                    <button class="btn btn-sm btn-warning edit-medicine-with-reason" data-id="${itemId}" title="Edit with Reason">
+                                        <i class="bi bi-pencil-square"></i> Edit with Reason
+                                    </button>
+                                `);
+                            }
+                        }
+                    }
+
+                    // Close the modal
+                    $('#editReasonModal').modal('hide');
+
+                    // Show success message
+                    showValidationMessage(response.message, 'success');
+
+                    // Reload main table if available
+                    if (typeof tbl !== 'undefined' && tbl.ajax) {
+                        tbl.ajax.reload();
+                    }
+                } else {
+                    alert(response.message || 'Failed to update medicine item.');
+                }
+            })
+            .fail(function(xhr, status, error) {
+                console.error('Update medicine item request failed:', status, error);
+                alert('Network error occurred. Please try again.');
+            })
+            .always(function() {
+                // Re-enable button
+                $('#saveEditChanges').prop('disabled', false).html('<i class="bi bi-check-circle me-1"></i>Save Changes');
+            });
+        });
+
+        function convertStoreInventoryRowToEditMode(row, itemId) {
+            const currentReceivedQty = parseInt(row.find('td:eq(5)').text()) || 0;
+            const raisedQty = parseInt(row.find('td:eq(4)').text()) || 0;
+            const currentBatchNo = row.find('td:eq(7)').text().trim();
+            const currentExpiryDate = row.find('td:eq(8)').text().trim();
+
+            const batchNoValue = currentBatchNo === '-' ? '' : currentBatchNo;
+            let expiryDateValue = '';
+
+            if (currentExpiryDate !== '-') {
+                // Convert from DD/MM/YYYY to YYYY-MM-DD for input[type=date]
+                const dateParts = currentExpiryDate.split('/');
+                if (dateParts.length === 3) {
+                    expiryDateValue = `${dateParts[2]}-${dateParts[1].padStart(2, '0')}-${dateParts[0].padStart(2, '0')}`;
+                }
+            }
+
+            // Store original row content
+            row.data('original-content', row.html());
+
+            // Replace received quantity with input
+            row.find('td:eq(5)').html(`
+                <input type="number" class="form-control form-control-sm edit-received-qty"
+                       value="${currentReceivedQty}" min="0" max="${raisedQty}" />
+            `);
+
+            // Replace batch no with input
+            row.find('td:eq(7)').html(`
+                <input type="text" class="form-control form-control-sm edit-batch-no"
+                       value="${batchNoValue}" placeholder="Batch No" maxlength="50" />
+            `);
+
+            // Replace expiry date with input
+            row.find('td:eq(8)').html(`
+                <input type="date" class="form-control form-control-sm edit-expiry-date"
+                       value="${expiryDateValue}" min="${new Date().toISOString().split('T')[0]}" />
+            `);
+
+            // Replace action button with save/cancel
+            row.find('td:eq(9)').html(`
+                <button class="btn btn-sm btn-success save-medicine-inline me-1" data-id="${itemId}" title="Save Changes">
+                    <i class="bi bi-check"></i>Save
+                </button>
+                <button class="btn btn-sm btn-secondary cancel-medicine-inline" title="Cancel">
+                    <i class="bi bi-x"></i>Cancel
+                </button>
+            `);
+
+            // Auto-calculate pending quantity
+            updateStoreInventoryCalculatedFields(row, raisedQty);
+
+            // Add event listeners for auto-calculation
+            row.find('.edit-received-qty').on('input', function() {
+                updateStoreInventoryCalculatedFields(row, raisedQty);
+            });
+        }
+
+        function updateStoreInventoryCalculatedFields(row, raisedQty) {
+            const receivedQty = parseInt(row.find('.edit-received-qty').val()) || 0;
+            const pendingQty = Math.max(0, raisedQty - receivedQty);
+
+            // Update pending quantity
+            row.find('td:eq(6)').html(`
+                <span class="badge ${pendingQty > 0 ? 'bg-warning' : 'bg-success'}">
+                    ${pendingQty}
+                </span>
+            `);
+        }
+
+        // Save medicine item inline (Store Inventory mode)
+        $(document).on('click', '.save-medicine-inline', function() {
+            if (!isStoreInventory) return;
+
+            const itemId = $(this).data('id');
+            const row = $(this).closest('tr');
+            const receivedQty = parseInt(row.find('.edit-received-qty').val()) || 0;
+            const batchNo = row.find('.edit-batch-no').val() || '';
+            const expiryDateValue = row.find('.edit-expiry-date').val();
+            const raisedQty = parseInt(row.find('td:eq(4)').text()) || 0;
+
+            // Validate received quantity
+            if (receivedQty > raisedQty) {
+                alert('Received quantity cannot exceed raised quantity.');
+                return;
+            }
+
+            // Validate expiry date
+            if (expiryDateValue) {
+                const today = new Date();
+                today.setHours(0, 0, 0, 0);
+                const expiry = new Date(expiryDateValue);
+                expiry.setHours(0, 0, 0, 0);
+
+                if (expiry < today) {
+                    alert('Expiry date cannot be in the past.');
+                    return;
+                }
+            }
+
+            // Disable button to prevent double submission
+            $(this).prop('disabled', true);
+
+            // Prepare data object
+            const postData = {
+                indentItemId: itemId,
+                receivedQuantity: receivedQty,
+                batchNo: batchNo
+            };
+
+            if (expiryDateValue) {
+                postData.expiryDate = new Date(expiryDateValue).toISOString();
+            }
+
+            // Update via AJAX
+            $.post('@Url.Action("UpdateMedicineItem", "StoreIndent")', postData)
+            .done(function(response) {
+                if (response.success) {
+                    // Update row with new values
+                    row.find('td:eq(5)').text(response.data.receivedQuantity);
+                    row.find('td:eq(6)').html(`
+                        <span class="badge ${response.data.pendingQuantity > 0 ? 'bg-warning' : 'bg-success'}">
+                            ${response.data.pendingQuantity}
+                        </span>
+                    `);
+                    row.find('td:eq(7)').text(response.data.batchNo || '-');
+                    row.find('td:eq(8)').text(
+                        response.data.expiryDate ?
+                        new Date(response.data.expiryDate).toLocaleDateString('en-GB') :
+                        '-'
+                    );
+
+                    // Restore action button based on pending quantity
+                    if (response.data.pendingQuantity > 0) {
+                        // Normal inline edit for items with pending quantity
+                        row.find('td:eq(9)').html(`
+                            <button class="btn btn-sm btn-secondary edit-medicine-inline" data-id="${itemId}" title="Update Item">
+                                <i class="bi bi-pencil"></i> Edit
+                            </button>
+                        `);
+                    } else {
+                        // Edit with reason for fully received items
+                        row.find('td:eq(9)').html(`
+                            <button class="btn btn-sm btn-warning edit-medicine-with-reason" data-id="${itemId}" title="Edit with Reason">
+                                <i class="bi bi-pencil-square"></i> Edit with Reason
+                            </button>
+                        `);
+                    }
+
+                    // Show success message
+                    showValidationMessage(response.message, 'success');
+
+                    // Reload main table if available
+                    if (typeof tbl !== 'undefined' && tbl.ajax) {
+                        tbl.ajax.reload();
+                    }
+                } else {
+                    alert(response.message || 'Failed to update medicine item.');
+                    // Re-enable button
+                    $(this).prop('disabled', false);
+                }
+            })
+            .fail(function(xhr, status, error) {
+                console.error('Update medicine item request failed:', status, error);
+                alert('Network error occurred. Please try again.');
+                // Re-enable button
+                $(this).prop('disabled', false);
+            });
+        });
+
+        // Cancel medicine item inline edit
+        $(document).on('click', '.cancel-medicine-inline', function() {
+            const row = $(this).closest('tr');
+            const originalContent = row.data('original-content');
+
+            if (originalContent) {
+                row.html(originalContent);
+                row.removeData('original-content');
+            }
+        });
+
+        // Form submission (only for non-Store Inventory)
+        $('#storeIndentForm').on('submit', function(e) {
+            if (isStoreInventory) {
+                e.preventDefault();
+                return false;
+            }
+
+            e.preventDefault(); // Always prevent default to handle custom logic
+
+            // Clear any previous validation messages
+            $('#medicineValidationMessage').hide();
+
+            // Check for incomplete editing rows
+            let hasIncompleteRows = false;
+            $('.editing-row').each(function() {
+                const row = $(this);
+                const medicineSelect = row.find('.medicine-dropdown');
+                const vendorInput = row.find('.vendor-input');
+                const raisedQtyInput = row.find('.raised-qty-input');
+
+                const medItemId = medicineSelect.val();
+                const vendorCode = vendorInput.val().trim();
+                const raisedQuantity = parseInt(raisedQtyInput.val());
+
+                if (medItemId || vendorCode || raisedQuantity) {
+                    // Row has some data but may not be complete
+                    if (!medItemId || !vendorCode || !raisedQuantity || raisedQuantity <= 0) {
+                        hasIncompleteRows = true;
+                        return false; // Break out of each loop
+                    }
+                }
+            });
+
+            if (hasIncompleteRows) {
+                showValidationMessage('Please complete all medicine entries or delete incomplete ones before saving.', 'warning');
+                return false;
+            }
+
+            // Debug: Log the medicines data being sent
+            console.log('Medicines data being sent:', allMedicines);
+            const jsonData = JSON.stringify(allMedicines);
+            console.log('JSON string:', jsonData);
+
+            // Update hidden field with medicines data
+            $('#medicinesData').val(jsonData);
+
+            const actionType = $('#actionType').val();
+            const form = $(this);
+
+            // Disable buttons to prevent double submission
+            $('#saveBtn, #submitBtn').prop('disabled', true);
+
+            // Submit the form via AJAX
+            $.post(form.attr('action'), form.serialize())
+            .done(function(res) {
+                if (res.success) {
+                    hasUnsavedChanges = false; // Clear the flag
+
+                    if (actionType.toLowerCase() === 'save') {
+                        // For save operations - keep modal open, show success message
+                        showValidationMessage(res.message || 'Store Indent saved successfully!', 'success');
+
+                        // Reload the table to show the updated data
+                        if (typeof tbl !== 'undefined' && tbl.ajax) {
+                            tbl.ajax.reload();
+                        }
+
+                        // Update the form for create to edit mode if this was a create operation
+                        if (form.attr('action').includes('Create') && res.indentId) {
+                            const editUrl = '@Url.Action("Edit", "StoreIndent")' + '/' + res.indentId;
+                            form.attr('action', editUrl);
+                            $('input[name="IndentId"]').val(res.indentId);
+                            indentId = res.indentId;
+
+                            // Update the indent ID display
+                            $('input[readonly][value="AUTO"]').val(res.indentId);
+                        }
+                    } else {
+                        // For submit operations - close modal
+                        $('#modalStoreIndent').modal('hide');
+
+                        // Reload the table
+                        if (typeof tbl !== 'undefined' && tbl.ajax) {
+                            tbl.ajax.reload();
+                        }
+
+                        // Show success message
+                        const isCreate = form.attr('action').includes('Create');
+                        if (isCreate && res.redirectToEdit) {
+                            if (typeof showMessage === 'function') {
+                                showMessage('Store Indent submitted successfully! <a href="#" class="edit-link" data-id="' + res.indentId + '">Click here to add medicines</a>', 'success');
+                            }
+                        } else {
+                            if (typeof showMessage === 'function') {
+                                const message = res.message || (isCreate ? 'Store Indent submitted successfully!' : 'Store Indent updated successfully!');
+                                showMessage(message, 'success');
+                            }
+                        }
+                    }
+                } else if (typeof res === 'string') {
+                    // Server returned HTML (validation errors)
+                    $('#modalBody').html(res);
+                } else {
+                    // Error in JSON response
+                    if (typeof showMessage === 'function') {
+                        showMessage(res.message || 'An error occurred while processing the request.', 'error');
+                    }
+                }
+            })
+            .fail(function(xhr, status, error) {
+                console.error('AJAX request failed:', status, error);
+                if (typeof showMessage === 'function') {
+                    showMessage('Network error occurred. Please try again.', 'error');
+                }
+            })
+            .always(function() {
+                // Re-enable buttons
+                $('#saveBtn, #submitBtn').prop('disabled', false);
+            });
+
+            return false;
+        });
+
+        // Initialize everything
+        console.log('Initializing - isEdit:', isEdit, 'isStoreInventory:', isStoreInventory, 'indentId:', indentId);
+        trackFormChanges();
+
+        // FIXED: Load existing medicines using same pattern as CompounderIndent
+        loadExistingMedicines();
+    });
+</script>

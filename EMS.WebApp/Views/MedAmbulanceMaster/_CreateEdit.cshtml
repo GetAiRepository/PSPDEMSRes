@@ -1,0 +1,455 @@
+﻿@model EMS.WebApp.Data.med_ambulance_master
+@if (ViewBag.Error != null)
+{
+    <div class="alert alert-warning">
+        @ViewBag.Error
+    </div>
+}
+<form asp-action="@(Model.amb_id == 0 ? "Create" : "Edit")" method="post" id="medAmbulanceMasterForm">
+    @Html.AntiForgeryToken()
+
+    <input asp-for="amb_id" type="hidden" />
+    <input type="hidden" id="checkUrlHidden" value="@Url.Action("CheckVehicleNumberExists", "MedAmbulanceMaster")" />
+
+    <!-- Display general validation message -->
+    <div asp-validation-summary="ModelOnly" class="text-danger"></div>
+
+    <div class="row mb-3">
+        <div class="col-md-6">
+            <label asp-for="vehicle_no" class="form-label">@Html.DisplayNameFor(m => m.vehicle_no) <span class="text-danger">*</span></label>
+            <input asp-for="vehicle_no" class="form-control rounded-2 glass" id="vehicleNoInput" maxlength="20" placeholder="Enter vehicle number" />
+            <div class="d-flex justify-content-between mt-1">
+                <span asp-validation-for="vehicle_no" class="text-danger" id="vehicleNoValidation"></span>
+                <small class="text-muted">
+                    <span id="vehicleNoCharCount">0</span>/20 characters
+                </small>
+            </div>
+        </div>
+
+        <div class="col-md-6">
+            <label asp-for="provider" class="form-label">@Html.DisplayNameFor(m => m.provider) <span class="text-danger">*</span></label>
+            <input asp-for="provider" class="form-control rounded-2 glass" id="providerInput" maxlength="100" placeholder="Enter provider name" />
+            <div class="d-flex justify-content-between mt-1">
+                <span asp-validation-for="provider" class="text-danger" id="providerValidation"></span>
+                <small class="text-muted">
+                    <span id="providerCharCount">0</span>/100 characters
+                </small>
+            </div>
+        </div>
+    </div>
+
+    <div class="row mb-3">
+        <div class="col-md-6">
+            <label asp-for="vehicle_type" class="form-label">@Html.DisplayNameFor(m => m.vehicle_type)</label>
+            <input asp-for="vehicle_type" class="form-control rounded-2 glass" id="vehicleTypeInput" maxlength="50" placeholder="Enter vehicle type" />
+            <div class="d-flex justify-content-between mt-1">
+                <span asp-validation-for="vehicle_type" class="text-danger" id="vehicleTypeValidation"></span>
+                <small class="text-muted">
+                    <span id="vehicleTypeCharCount">0</span>/50 characters
+                </small>
+            </div>
+        </div>
+
+        <div class="col-md-6">
+            <label asp-for="max_capacity" class="form-label">@Html.DisplayNameFor(m => m.max_capacity) <span class="text-danger">*</span></label>
+            <input asp-for="max_capacity" type="number" class="form-control rounded-2 glass" id="maxCapacityInput" min="1" max="50" placeholder="Enter max capacity" />
+            <span asp-validation-for="max_capacity" class="text-danger" id="maxCapacityValidation"></span>
+        </div>
+    </div>
+
+    <div class="row mb-3">
+        <div class="col-md-6">
+            <label class="form-label">Active Status <span class="text-danger">*</span></label>
+            <div class="d-flex justify-content-around align-items-center">
+                <div class="form-check">
+                    <input class="form-check-input" type="radio" asp-for="is_active" value="true" id="Active">
+                    <label class="form-check-label" for="Active">Active</label>
+                </div>
+                <div class="form-check">
+                    <input class="form-check-input" type="radio" asp-for="is_active" value="false" id="NotActive">
+                    <label class="form-check-label" for="NotActive">Not Active</label>
+                </div>
+            </div>
+            <span asp-validation-for="is_active" class="text-danger" id="isActiveValidation"></span>
+        </div>
+    </div>
+
+    <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+        <button type="submit" class="btn btn-primary" id="submitBtn">
+            @(Model.amb_id == 0 ? "Save" : "Update")
+        </button>
+    </div>
+</form>
+
+@section Scripts {
+    @{
+        await Html.RenderPartialAsync("_ValidationScriptsPartial");
+    }
+
+    <script type="text/javascript">
+        $(document).ready(function() {
+            // Form elements
+            const form = $('#medAmbulanceMasterForm');
+            const submitBtn = $('#submitBtn');
+            const vehicleNoInput = $('#vehicleNoInput');
+            const providerInput = $('#providerInput');
+            const vehicleTypeInput = $('#vehicleTypeInput');
+            const maxCapacityInput = $('#maxCapacityInput');
+            const isActiveInputs = $('input[name="is_active"]');
+            const ambId = $('#amb_id').val();
+
+            // Character count elements
+            const vehicleNoCharCount = $('#vehicleNoCharCount');
+            const providerCharCount = $('#providerCharCount');
+            const vehicleTypeCharCount = $('#vehicleTypeCharCount');
+
+            // Validation flags
+            let isCheckingVehicleNo = false;
+
+            // Initialize validation
+            form.removeData("validator");
+            form.removeData("unobtrusiveValidation");
+            $.validator.unobtrusive.parse(form);
+
+            // Security patterns to check for
+            const dangerousPatterns = [
+                /<script[^>]*>.*?<\/script>/gi,
+                /javascript:/gi,
+                /vbscript:/gi,
+                /on\w+\s*=/gi,
+                /<iframe/gi,
+                /<object/gi,
+                /<embed/gi,
+                /<form/gi,
+                /eval\s*\(/gi,
+                /expression\s*\(/gi
+            ];
+
+            // Function to check for dangerous input
+            function containsDangerousInput(text) {
+                if (!text) return false;
+                return dangerousPatterns.some(pattern => pattern.test(text));
+            }
+
+            // Character count functions
+            function updateCharCount(input, countElement, maxLength) {
+                const currentLength = input.val().length;
+                countElement.text(currentLength);
+                countElement.removeClass('text-warning text-danger');
+                const warningThreshold = maxLength * 0.8;
+                if (currentLength > warningThreshold && currentLength < maxLength) {
+                    countElement.addClass('text-warning');
+                } else if (currentLength >= maxLength) {
+                    countElement.addClass('text-danger');
+                }
+            }
+
+            // Validation functions
+            function validateVehicleNumber() {
+                const vehicleNo = vehicleNoInput.val().trim();
+                const validationSpan = $('#vehicleNoValidation');
+                let isValid = true;
+
+                // Clear non-uniqueness validation errors
+                if (!validationSpan.text().includes('already exists')) {
+                    validationSpan.text('').removeClass('field-validation-error').hide();
+                    vehicleNoInput.removeClass('is-invalid');
+                }
+
+                if (!vehicleNo) {
+                    validationSpan.text('Vehicle Number is required.')
+                                 .addClass('field-validation-error text-danger')
+                                 .show();
+                    vehicleNoInput.addClass('is-invalid');
+                    isValid = false;
+                } else if (vehicleNo.length < 3) {
+                    validationSpan.text('Vehicle Number must be at least 3 characters.')
+                                 .addClass('field-validation-error text-danger')
+                                 .show();
+                    vehicleNoInput.addClass('is-invalid');
+                    isValid = false;
+                } else if (vehicleNo.length > 20) {
+                    validationSpan.text('Vehicle Number cannot exceed 20 characters.')
+                                 .addClass('field-validation-error text-danger')
+                                 .show();
+                    vehicleNoInput.addClass('is-invalid');
+                    isValid = false;
+                } else if (containsDangerousInput(vehicleNo)) {
+                    validationSpan.text('Vehicle Number contains invalid characters. Script tags and unsafe characters are not allowed.')
+                                 .addClass('field-validation-error text-danger')
+                                 .show();
+                    vehicleNoInput.addClass('is-invalid');
+                    isValid = false;
+                } else if (!/^[a-zA-Z0-9\-_]+$/.test(vehicleNo)) {
+                    validationSpan.text('Vehicle Number can only contain letters, numbers, hyphens, and underscores.')
+                                 .addClass('field-validation-error text-danger')
+                                 .show();
+                    vehicleNoInput.addClass('is-invalid');
+                    isValid = false;
+                }
+
+                return isValid;
+            }
+
+            function validateProvider() {
+                const provider = providerInput.val().trim();
+                const validationSpan = $('#providerValidation');
+                let isValid = true;
+
+                validationSpan.text('').removeClass('field-validation-error').hide();
+                providerInput.removeClass('is-invalid');
+
+                if (!provider) {
+                    validationSpan.text('Provider is required.')
+                                 .addClass('field-validation-error text-danger')
+                                 .show();
+                    providerInput.addClass('is-invalid');
+                    isValid = false;
+                } else if (provider.length < 2) {
+                    validationSpan.text('Provider must be at least 2 characters.')
+                                 .addClass('field-validation-error text-danger')
+                                 .show();
+                    providerInput.addClass('is-invalid');
+                    isValid = false;
+                } else if (provider.length > 100) {
+                    validationSpan.text('Provider cannot exceed 100 characters.')
+                                 .addClass('field-validation-error text-danger')
+                                 .show();
+                    providerInput.addClass('is-invalid');
+                    isValid = false;
+                } else if (containsDangerousInput(provider)) {
+                    validationSpan.text('Provider contains invalid characters. Script tags and unsafe characters are not allowed.')
+                                 .addClass('field-validation-error text-danger')
+                                 .show();
+                    providerInput.addClass('is-invalid');
+                    isValid = false;
+                } else if (!/^[a-zA-Z0-9\s\-_\.\(\)\[\]]+$/.test(provider)) {
+                    validationSpan.text('Provider can only contain letters, numbers, spaces, hyphens, underscores, dots, parentheses, and brackets.')
+                                 .addClass('field-validation-error text-danger')
+                                 .show();
+                    providerInput.addClass('is-invalid');
+                    isValid = false;
+                }
+
+                return isValid;
+            }
+
+            function validateVehicleType() {
+                const vehicleType = vehicleTypeInput.val().trim();
+                const validationSpan = $('#vehicleTypeValidation');
+                let isValid = true;
+
+                validationSpan.text('').removeClass('field-validation-error').hide();
+                vehicleTypeInput.removeClass('is-invalid');
+
+                if (vehicleType && vehicleType.length > 50) {
+                    validationSpan.text('Vehicle Type cannot exceed 50 characters.')
+                                 .addClass('field-validation-error text-danger')
+                                 .show();
+                    vehicleTypeInput.addClass('is-invalid');
+                    isValid = false;
+                } else if (containsDangerousInput(vehicleType)) {
+                    validationSpan.text('Vehicle Type contains invalid characters. Script tags and unsafe characters are not allowed.')
+                                 .addClass('field-validation-error text-danger')
+                                 .show();
+                    vehicleTypeInput.addClass('is-invalid');
+                    isValid = false;
+                } else if (vehicleType && !/^[a-zA-Z0-9\s\-_\.\(\)\[\]]*$/.test(vehicleType)) {
+                    validationSpan.text('Vehicle Type can only contain letters, numbers, spaces, hyphens, underscores, dots, parentheses, and brackets.')
+                                 .addClass('field-validation-error text-danger')
+                                 .show();
+                    vehicleTypeInput.addClass('is-invalid');
+                    isValid = false;
+                }
+
+                return isValid;
+            }
+
+            function validateMaxCapacity() {
+                const maxCapacity = maxCapacityInput.val();
+                const validationSpan = $('#maxCapacityValidation');
+                let isValid = true;
+
+                validationSpan.text('').removeClass('field-validation-error').hide();
+                maxCapacityInput.removeClass('is-invalid');
+
+                if (!maxCapacity) {
+                    validationSpan.text('Max Capacity is required.')
+                                 .addClass('field-validation-error text-danger')
+                                 .show();
+                    maxCapacityInput.addClass('is-invalid');
+                    isValid = false;
+                } else if (maxCapacity < 1 || maxCapacity > 50) {
+                    validationSpan.text('Max Capacity must be between 1 and 50.')
+                                 .addClass('field-validation-error text-danger')
+                                 .show();
+                    maxCapacityInput.addClass('is-invalid');
+                    isValid = false;
+                }
+
+                return isValid;
+            }
+
+            function validateActiveStatus() {
+                const isActiveSelected = isActiveInputs.filter(':checked').length > 0;
+                const validationSpan = $('#isActiveValidation');
+                let isValid = true;
+
+                validationSpan.text('').removeClass('field-validation-error').hide();
+                isActiveInputs.removeClass('is-invalid');
+
+                if (!isActiveSelected) {
+                    validationSpan.text('Active Status is required.')
+                                 .addClass('field-validation-error text-danger')
+                                 .show();
+                    isActiveInputs.addClass('is-invalid');
+                    isValid = false;
+                }
+
+                return isValid;
+            }
+
+            // Real-time validation for vehicle number uniqueness
+            function checkVehicleNumberUniqueness() {
+                const vehicleNo = vehicleNoInput.val().trim();
+                const validationSpan = $('#vehicleNoValidation');
+
+                if (!vehicleNo || !validateVehicleNumber()) {
+                    updateSubmitButton();
+                    return;
+                }
+
+                if (isCheckingVehicleNo) return;
+
+                isCheckingVehicleNo = true;
+                submitBtn.prop('disabled', true);
+
+                const checkUrl = $('#checkUrlHidden').val();
+                $.post(checkUrl, {
+                    vehicleNo: vehicleNo,
+                    ambId: ambId || null
+                })
+                .done(function(response) {
+                    if (response.exists) {
+                        validationSpan.text('This vehicle number already exists.')
+                                     .addClass('field-validation-error text-danger')
+                                     .show();
+                        vehicleNoInput.addClass('is-invalid');
+                        submitBtn.prop('disabled', true);
+                    } else {
+                        if (validateVehicleNumber()) {
+                            validationSpan.text('').removeClass('field-validation-error').hide();
+                            vehicleNoInput.removeClass('is-invalid');
+                        }
+                        updateSubmitButton();
+                    }
+                })
+                .fail(function() {
+                    console.log('Error checking vehicle number uniqueness');
+                    updateSubmitButton();
+                })
+                .always(function() {
+                    isCheckingVehicleNo = false;
+                });
+            }
+
+            function updateSubmitButton() {
+                const hasErrors = $('.field-validation-error:visible').length > 0 ||
+                                $('.is-invalid').length > 0 ||
+                                isCheckingVehicleNo;
+                submitBtn.prop('disabled', hasErrors);
+            }
+
+            // Event handlers
+            vehicleNoInput.on('input keyup paste', function() {
+                updateCharCount($(this), vehicleNoCharCount, 20);
+                validateVehicleNumber();
+                updateSubmitButton();
+            });
+
+            providerInput.on('input keyup paste', function() {
+                updateCharCount($(this), providerCharCount, 100);
+                validateProvider();
+                updateSubmitButton();
+            });
+
+            vehicleTypeInput.on('input keyup paste', function() {
+                updateCharCount($(this), vehicleTypeCharCount, 50);
+                validateVehicleType();
+                updateSubmitButton();
+            });
+
+            maxCapacityInput.on('input change', function() {
+                validateMaxCapacity();
+                updateSubmitButton();
+            });
+
+            isActiveInputs.on('change', function() {
+                validateActiveStatus();
+                updateSubmitButton();
+            });
+
+            // Debounced vehicle number uniqueness check
+            let vehicleNoCheckTimeout;
+            vehicleNoInput.on('input keyup', function() {
+                clearTimeout(vehicleNoCheckTimeout);
+                vehicleNoCheckTimeout = setTimeout(checkVehicleNumberUniqueness, 500);
+            });
+
+            // Initialize on page load
+            updateCharCount(vehicleNoInput, vehicleNoCharCount, 20);
+            updateCharCount(providerInput, providerCharCount, 100);
+            updateCharCount(vehicleTypeInput, vehicleTypeCharCount, 50);
+            validateVehicleNumber();
+            validateProvider();
+            validateVehicleType();
+            validateMaxCapacity();
+            validateActiveStatus();
+            updateSubmitButton();
+
+            // Prevent form submission if validation fails
+            form.on('submit', function(e) {
+                if (!validateVehicleNumber() || !validateProvider() || !validateVehicleType() ||
+                    !validateMaxCapacity() || !validateActiveStatus() || isCheckingVehicleNo) {
+                    e.preventDefault();
+                    return false;
+                }
+
+                // Final check for any visible errors
+                if ($('.field-validation-error:visible').length > 0) {
+                    e.preventDefault();
+                    return false;
+                }
+
+                // Double-check for dangerous input before submission
+                const vehicleNo = vehicleNoInput.val().trim();
+                const provider = providerInput.val().trim();
+                const vehicleType = vehicleTypeInput.val().trim();
+
+                if (containsDangerousInput(vehicleNo) || containsDangerousInput(provider) || containsDangerousInput(vehicleType)) {
+                    e.preventDefault();
+                    alert('Invalid input detected. Please remove any script tags or unsafe characters.');
+                    return false;
+                }
+            });
+
+            // Prevent pasting of dangerous content
+            function handleDangerousPaste(input, inputName) {
+                input.on('paste', function(e) {
+                    setTimeout(function() {
+                        const pastedContent = input.val();
+                        if (containsDangerousInput(pastedContent)) {
+                            input.val('');
+                            alert('Pasted content in ' + inputName + ' contains unsafe characters and has been removed.');
+                        }
+                    }, 10);
+                });
+            }
+
+            handleDangerousPaste(vehicleNoInput, 'Vehicle Number');
+            handleDangerousPaste(providerInput, 'Provider');
+            handleDangerousPaste(vehicleTypeInput, 'Vehicle Type');
+        });
+    </script>
+}

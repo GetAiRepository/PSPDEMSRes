@@ -1,0 +1,61 @@
+﻿@model EMS.WebApp.Data.SysUser
+
+<div class="row mb-3">
+    <div class="col-md-6">
+        <label class="form-label">User ID</label>
+        <input class="form-control rounded-2" value="@Model.user_id" readonly />
+    </div>
+    <div class="col-md-6">
+        <label class="form-label">Active Directory ID</label>
+        <input class="form-control rounded-2" value="@(Model.adid ?? "Not Specified")" readonly />
+    </div>
+</div>
+
+<div class="row mb-3">
+    <div class="col-md-6">
+        <label class="form-label">Full Name</label>
+        <input class="form-control rounded-2" value="@Model.full_name" readonly />
+    </div>
+    <div class="col-md-6">
+        <label class="form-label">Email Address</label>
+        <input class="form-control rounded-2" value="@Model.email" readonly />
+    </div>
+</div>
+
+<div class="row mb-3">
+    <div class="col-md-6">
+        <label class="form-label">Role Name</label>
+        <input class="form-control rounded-2" value="@(Model.SysRole?.role_name ?? "No Role Assigned")" readonly />
+    </div>
+    <div class="col-md-6">
+        <label class="form-label">User Status</label>
+        <div class="d-flex justify-content-around align-items-center">
+            <div class="form-check">
+                <input class="form-check-input" type="radio" name="viewStatus" id="ViewActive" value="true" @(Model.is_active ? "checked" : "") disabled>
+                <label class="form-check-label" for="ViewActive">
+                    Active
+                </label>
+            </div>
+            <div class="form-check">
+                <input class="form-check-input" type="radio" name="viewStatus" id="ViewNotActive" value="false" @(!Model.is_active ? "checked" : "") disabled>
+                <label class="form-check-label" for="ViewNotActive">
+                    Not Active
+                </label>
+            </div>
+        </div>
+    </div>
+</div>
+
+@if (Model.SysRole != null)
+{
+    <div class="row mb-3">
+        <div class="col-md-12">
+            <label class="form-label">Role Description</label>
+            <textarea class="form-control rounded-2" rows="2" readonly>@(Model.SysRole.role_desc ?? "No description available")</textarea>
+        </div>
+    </div>
+}
+
+<div class="modal-footer">
+    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+</div>

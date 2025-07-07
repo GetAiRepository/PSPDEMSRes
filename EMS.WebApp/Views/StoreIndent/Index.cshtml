@@ -1,0 +1,417 @@
+﻿@{
+    ViewData["Title"] = "Store Indent";
+}
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <div class="d-flex align-items-center gap-2">
+        <label for="indentTypeFilter" class="form-label mb-0">Indent Type:</label>
+        <select id="indentTypeFilter" class="form-select form-select-sm glass-input" style="width: 180px">
+            <option value="">All Types</option>
+            <option value="Draft Indent">Draft Indent (My Drafts)</option>
+            <option value="Pending Indents">Pending Indents</option>
+            <option value="Approved Indents">Approved Indents</option>
+            <option value="Rejected Indents">Rejected Indents</option>
+            <option value="Store Inventory">Store Inventory</option>
+        </select>
+    </div>
+    <button id="btnCreate" class="btn btn-primary">+Add Store Indent</button>
+</div>
+
+<!-- Success/Error message area -->
+<div id="messageArea" style="display:none;"></div>
+
+<table id="tblStoreIndents" class="table table-striped table-glass glass-table">
+    <thead>
+        <tr>
+            <th>SI.No</th>
+            <th>Indent No.</th>
+            <th>Indent Type</th>
+            <th>Indent Date</th>
+            <th>Status</th>
+            <th>Created By</th>
+            <th style="width:200px">Actions</th>
+        </tr>
+    </thead>
+    <tbody></tbody>
+</table>
+
+<!-- Modal -->
+<div class="modal fade" id="modalStoreIndent" tabindex="-1">
+    <div class="modal-dialog modal-xl modal-dialog-centered">
+        <div class="modal-content glass">
+            <div class="modal-header">
+                <h5 class="modal-title"></h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body" id="modalBody"></div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        // Show message function for page-level notifications
+        function showMessage(message, type = 'success') {
+            const alertClass = type === 'success' ? 'alert-success' : type === 'error' ? 'alert-danger' : 'alert-warning';
+            $('#messageArea')
+                .removeClass('alert-success alert-warning alert-danger')
+                .addClass(`alert ${alertClass}`)
+                .html(message)
+                .show();
+
+            // Auto hide after 5 seconds
+            setTimeout(function() {
+                $('#messageArea').fadeOut();
+            }, 5000);
+
+            // Scroll to top to show message
+            $('html, body').animate({ scrollTop: 0 }, 300);
+        }
+
+        $(function () {
+            const modalEl = $('#modalStoreIndent');
+            modalEl.appendTo('body');
+            modalEl.modal({ backdrop: 'static', keyboard: false, show: false });
+
+            // Initialize page state
+            function initializePageState() {
+                const selectedType = $('#indentTypeFilter').val();
+                if (selectedType === '') { // "All Types" selected
+                    $('#tblStoreIndents').hide();
+                    if ($('#noFilterMessage').length === 0) {
+                        $('#tblStoreIndents').after('<div id="noFilterMessage" class="alert alert-info text-center"><i class="bi bi-info-circle me-2"></i>Please select a specific Indent Type to view records.</div>');
+                    }
+                } else {
+                    $('#tblStoreIndents').show();
+                    $('#noFilterMessage').remove();
+                }
+            }
+
+            // Initialize DataTable
+            const tbl = $('#tblStoreIndents').DataTable({
+                ajax: {
+                    url: '@Url.Action("LoadData", "StoreIndent")',
+                    dataSrc: 'data',
+                    data: function(d) {
+                        d.indentType = $('#indentTypeFilter').val();
+                    }
+                },
+                columns: [
+                    {
+                        data: null,
+                        render: function(data, type, row, meta) {
+                            return meta.row + 1;
+                        }
+                    },
+                    { data: 'indentNo' },
+                    {
+                        data: 'indentType',
+                        render: function(data) {
+                            if (data === 'Draft Indent') {
+                                return '<span class="badge bg-secondary"><i class="bi bi-file-text me-1"></i>' + data + '</span>';
+                            } else if (data === 'Store Inventory') {
+                                return '<span class="badge bg-info"><i class="bi bi-boxes me-1"></i>' + data + '</span>';
+                            }
+                            return data;
+                        }
+                    },
+                    { data: 'indentDate' },
+                    {
+                        data: 'status',
+                        render: function(data) {
+                            var badgeClass = 'bg-secondary';
+                            var icon = 'bi-question-circle';
+
+                            if (data === 'Draft') {
+                                badgeClass = 'bg-secondary';
+                                icon = 'bi-file-text';
+                            } else if (data === 'Pending') {
+                                badgeClass = 'bg-warning';
+                                icon = 'bi-clock';
+                            } else if (data === 'Approved') {
+                                badgeClass = 'bg-success';
+                                icon = 'bi-check-circle';
+                            } else if (data === 'Rejected') {
+                                badgeClass = 'bg-danger';
+                                icon = 'bi-x-circle';
+                            }
+
+                            return '<span class="badge ' + badgeClass + '"><i class="' + icon + ' me-1"></i>' + data + '</span>';
+                        }
+                    },
+                    { data: 'createdBy', render: function(data) { return data || 'N/A'; } },
+                    {
+                        data: null,
+                        render: function(data, type, row) {
+                            const id = row.indentId;
+                            const status = row.status;
+                            const indentType = row.indentType;
+                            const canApproveReject = row.canApproveReject;
+                            const canEdit = row.canEdit;
+                            const canDelete = row.canDelete;
+                            const isDoctor = row.isDoctor;
+                            const allItemsReceived = row.allItemsReceived;
+                            const hasItems = row.hasItems;
+
+                            let buttons = '';
+
+                            // REVIEW & APPROVE BUTTON - ONLY FOR DOCTORS
+                            // Shows only when: user is doctor + status is pending + not a draft + not Store Inventory
+                            if (canApproveReject) {
+                                buttons += `<button class="btn btn-sm btn-success approve-reject me-1" data-id="${id}" title="Review & Approve/Reject Indent">
+                                                <i class="bi bi-check2-square"></i> Review & Approve
+
+                                            </button>`;
+                            }
+
+                            // Handle Store Inventory type
+                            if (indentType === 'Store Inventory') {
+
+                                // Always show view button for Store Inventory
+                                buttons += `<button class="btn btn-sm btn-info view me-1" data-id="${id}" title="View Inventory Details">
+                                                <i class="bi bi-eye"></i> View
+                                            </button>`;
+                                // For Store Inventory: Always show edit button if there are items (regardless of fully received status)
+                                if (canEdit && hasItems) {
+                                    buttons += `<button class="btn btn-sm btn-secondary edit me-1" data-id="${id}" title="Update Inventory">
+                                                    <i class="bi bi-pencil"></i> Edit
+                                                </button>`;
+                                }
+                            } else if (indentType === 'Draft Indent') {
+                                // Draft indents - only creator can edit (and not doctors)
+                                if (canEdit && !isDoctor) {
+                                    buttons += `<button class="btn btn-sm btn-secondary edit me-1" data-id="${id}" title="Edit Draft">
+                                                    <i class="bi bi-pencil"></i> Edit
+                                                </button>`;
+                                }
+                                if (canDelete && !isDoctor) {
+                                    buttons += `<button class="btn btn-sm btn-danger delete" data-id="${id}" title="Delete Draft">
+                                                    <i class="bi bi-trash"></i> Del
+                                                </button>`;
+                                }
+                                // Always show view button
+                                if (!canEdit || isDoctor) {
+                                    buttons += `<button class="btn btn-sm btn-info view me-1" data-id="${id}" title="View Details">
+                                                    <i class="bi bi-eye"></i> View
+                                                </button>`;
+                                }
+                            } else {
+                                // Non-draft indents
+                                switch(status) {
+                                    case 'Pending':
+                                        if (canEdit && !isDoctor) {
+                                            buttons += `<button class="btn btn-sm btn-secondary edit me-1" data-id="${id}" title="Edit Indent">
+                                                            <i class="bi bi-pencil"></i> Edit
+                                                        </button>`;
+                                        }
+                                        if (canDelete && !isDoctor) {
+                                            buttons += `<button class="btn btn-sm btn-danger delete" data-id="${id}" title="Delete Indent">
+                                                            <i class="bi bi-trash"></i> Del
+                                                        </button>`;
+                                        }
+                                        // Show view button if user cannot edit or is doctor
+                                        if ((!canEdit || isDoctor) && !canApproveReject) {
+                                            buttons += `<button class="btn btn-sm btn-info view me-1" data-id="${id}" title="View Details">
+                                                            <i class="bi bi-eye"></i> View
+                                                        </button>`;
+                                        }
+                                        break;
+
+                                    case 'Approved':
+                                    case 'Rejected':
+                                        // Only view button for completed indents
+                                        buttons += `<button class="btn btn-sm btn-info view me-1" data-id="${id}" title="View Details">
+                                                        <i class="bi bi-eye"></i> View
+                                                    </button>`;
+                                        break;
+
+                                    default:
+                                        // For any other status
+                                        if (canEdit && !isDoctor) {
+                                            buttons += `<button class="btn btn-sm btn-secondary edit me-1" data-id="${id}" title="Edit Indent">
+                                                            <i class="bi bi-pencil"></i> Edit
+                                                        </button>`;
+                                        }
+                                        if (canDelete && !isDoctor) {
+                                            buttons += `<button class="btn btn-sm btn-danger delete" data-id="${id}" title="Delete Indent">
+                                                            <i class="bi bi-trash"></i> Del
+                                                        </button>`;
+                                        }
+                                        // Show view button if user cannot edit or is doctor
+                                        if (!canEdit || isDoctor) {
+                                            buttons += `<button class="btn btn-sm btn-info view me-1" data-id="${id}" title="View Details">
+                                                            <i class="bi bi-eye"></i> View
+                                                        </button>`;
+                                        }
+                                }
+                            }
+
+                            return buttons;
+                        }
+                    }
+                ],
+                order: [[1, 'desc']],
+                pageLength: 25,
+                language: {
+                    emptyTable: 'No data available in table'
+                },
+                drawCallback: function() {
+                    // Update empty message based on filter
+                    const selectedType = $('#indentTypeFilter').val();
+                    const isEmpty = this.api().data().length === 0;
+
+                    if (isEmpty && selectedType === 'Draft Indent') {
+                        $('.dataTables_empty').html('You have no draft indents. Click "Add Store Indent" and save as draft to create one.');
+                    } else if (isEmpty && selectedType === 'Store Inventory') {
+                        $('.dataTables_empty').html('No approved indents available for inventory management.');
+                    }
+                }
+            });
+
+            // Filter change handler
+            $('#indentTypeFilter').change(function() {
+                const selectedType = $(this).val();
+
+                if (selectedType === '') { // "All Types" selected
+                    // Hide the table
+                    $('#tblStoreIndents').hide();
+                    // Show a message instead
+                    if ($('#noFilterMessage').length === 0) {
+                        $('#tblStoreIndents').after('<div id="noFilterMessage" class="alert alert-info text-center"><i class="bi bi-info-circle me-2"></i>Please select a specific Indent Type to view records.</div>');
+                    }
+                } else {
+                    // Show the table and remove message
+                    $('#tblStoreIndents').show();
+                    $('#noFilterMessage').remove();
+                    // Reload table data
+                    tbl.ajax.reload();
+                }
+            });
+
+            // Open Create Modal
+            $('#btnCreate').click(() => {
+                const createUrl = '@Url.Action("Create", "StoreIndent")';
+
+                $.get(createUrl)
+                .done(html => {
+                    modalEl.find('.modal-title').text('Add Store Indent');
+                    $('#modalBody').html(html);
+                    modalEl.modal('show');
+                })
+                .fail(function(xhr, status, error) {
+                    console.error('Create request failed:', status, error);
+                    showMessage('Failed to load create form. Please try again.', 'error');
+                });
+            });
+
+            // Open Edit Modal
+            $('#tblStoreIndents').on('click', '.edit', function () {
+                const id = $(this).data('id');
+                const editUrl = '@Url.Action("Edit", "StoreIndent")' + '/' + id;
+
+                $.get(editUrl)
+                .done(html => {
+                    modalEl.find('.modal-title').text('Edit Store Indent');
+                    $('#modalBody').html(html);
+                    modalEl.modal('show');
+                })
+                .fail(function(xhr, status, error) {
+                    console.error('Edit request failed:', status, error);
+                    showMessage('Failed to load edit form. Please try again.', 'error');
+                });
+            });
+
+            // Open Approve/Reject Modal
+            $('#tblStoreIndents').on('click', '.approve-reject', function () {
+                const id = $(this).data('id');
+                const approveRejectUrl = '@Url.Action("ApproveReject", "StoreIndent")' + '/' + id;
+
+                $.get(approveRejectUrl)
+                .done(html => {
+                    modalEl.find('.modal-title').text('Approve/Reject Store Indent');
+                    $('#modalBody').html(html);
+                    modalEl.modal('show');
+                })
+                .fail(function(xhr, status, error) {
+                    console.error('Approve/Reject request failed:', status, error);
+                    showMessage('Failed to load approve/reject form. Please try again.', 'error');
+                });
+            });
+
+            // View Modal
+            $('#tblStoreIndents').on('click', '.view', function (e) {
+                if ($(e.target).is('button') || $(e.target).is('i')) {
+                    const id = $(this).data('id');
+                    const detailsUrl = '@Url.Action("Details", "StoreIndent")' + '/' + id;
+
+                    $.get(detailsUrl)
+                    .done(html => {
+                        modalEl.find('.modal-title').text('View Store Indent');
+                        $('#modalBody').html(html);
+                        modalEl.modal('show');
+                    })
+                    .fail(function(xhr, status, error) {
+                        console.error('View request failed:', status, error);
+                        showMessage('Failed to load details. Please try again.', 'error');
+                    });
+                }
+            });
+
+            // Delete
+            $('#tblStoreIndents').on('click', '.delete', function () {
+                const indentType = $(this).closest('tr').find('td:eq(2)').text().trim();
+                const confirmText = indentType === 'Draft Indent' ? 'Delete this Draft?' : 'Delete this Store Indent?';
+
+                if (!confirm(confirmText)) return;
+
+                const id = $(this).data('id');
+                const deleteUrl = '@Url.Action("Delete", "StoreIndent")';
+
+                $.post(deleteUrl, { id: id })
+                .done(function(response) {
+                    if (response.success) {
+                        tbl.ajax.reload(null, false);
+                        const successText = indentType === 'Draft Indent' ? 'Draft deleted successfully.' : 'Store Indent deleted successfully.';
+                        showMessage(successText, 'success');
+                    } else {
+                        showMessage(response.message || 'Failed to delete Store Indent.', 'error');
+                    }
+                })
+                .fail(function(xhr, status, error) {
+                    console.error('Delete request failed:', status, error);
+                    showMessage('Failed to delete Store Indent. Please try again.', 'error');
+                });
+            });
+
+            // Handle edit link in success message
+            $(document).on('click', '.edit-link', function(e) {
+                e.preventDefault();
+                const id = $(this).data('id');
+                const editUrl = '@Url.Action("Edit", "StoreIndent")' + '/' + id;
+
+                $.get(editUrl)
+                .done(html => {
+                    modalEl.find('.modal-title').text('Edit Store Indent - Add Medicines');
+                    $('#modalBody').html(html);
+                    modalEl.modal('show');
+                    $('#messageArea').hide(); // Hide the message when modal opens
+                })
+                .fail(function(xhr, status, error) {
+                    console.error('Edit link request failed:', status, error);
+                    showMessage('Failed to load edit form. Please try again.', 'error');
+                });
+            });
+
+            // Hide message area when modal is shown
+            modalEl.on('shown.bs.modal', function() {
+                $('#messageArea').hide();
+            });
+
+            // Initialize the page state
+            initializePageState();
+
+            // Make tbl available globally for the approve/reject modal
+            window.tbl = tbl;
+        });
+    </script>
+}

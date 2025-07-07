@@ -1,0 +1,181 @@
+﻿@{
+    ViewData["Title"] = "Users Master";
+}
+<div class="d-flex justify-content-end mb-3">
+    <button id="btnCreate" class="btn btn-primary"> + Add User</button>
+</div>
+<table id="tblUser" class="table table-striped table-glass glass-table">
+    <thead>
+        <tr>
+            <th>User Id</th>
+            <th>Adid</th>
+            <th>Role Name</th>
+            <th>Full Name</th>
+            <th>Email</th>
+            <th>User Status</th>
+            <th style="width:120px">Actions</th>
+        </tr>
+    </thead>
+    <tbody></tbody>
+</table>
+
+<!-- Modal -->
+<div class="modal fade" id="modalUser" tabindex="-1">
+    <div class="modal-dialog modal-xl modal-dialog-centered">
+        <div class="modal-content glass">
+            <div class="modal-header">
+                <h5 class="modal-title"></h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body" id="modalBody"></div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        $(function () {
+            const modalEl = $('#modalUser');
+            modalEl.appendTo('body');
+            modalEl.modal({ backdrop: 'static', keyboard: false, show: false });
+
+            const tbl = $('#tblUser').DataTable({
+                ajax: { url: '@Url.Action("LoadData")', dataSrc: 'data' },
+                columns: [
+                    { data: 'user_id' },
+                    { data: 'adid' },
+                    { data: 'role_name' },
+                    { data: 'full_name' },
+                    { data: 'email' },
+                    {
+                        data: 'is_active',
+                        render: function(data) {
+                            return data ? 'Active' : 'Not Active';
+                        }
+                    },
+                    {
+                        data: 'user_id',
+                        render: id => `
+                            <button class="btn btn-sm btn-info view me-1" data-id="${id}">View</button>
+                            <button class="btn btn-sm btn-secondary edit me-1" data-id="${id}">Edit</button>
+                            <button class="btn btn-sm btn-danger delete" data-id="${id}">Del</button>`
+                    }
+                ]
+            });
+
+            // Open create modal
+            $('#btnCreate').click(() => {
+                $.get('@Url.Action("Create")')
+                    .done(html => {
+                        modalEl.find('.modal-title').text('Add User');
+                        $('#modalBody').html(html);
+                        modalEl.modal('show');
+                    })
+                    .fail(() => {
+                        showAlert('danger', 'Error loading create form.');
+                    });
+            });
+
+            // Open edit modal - IMPROVED with better error handling
+            $('#tblUser').on('click', '.edit', function () {
+                const id = $(this).data('id');
+                console.log('Edit button clicked for ID:', id); // Debug log
+
+                const editUrl = '@Url.Action("Edit", "SysUser")'.replace('__ID__', id);
+                $.get(editUrl, { id: id })
+                    .done(html => {
+                        console.log('Edit form loaded successfully'); // Debug log
+                        modalEl.find('.modal-title').text('Edit User');
+                        $('#modalBody').html(html);
+                        modalEl.modal('show');
+                    })
+                    .fail((xhr, status, error) => {
+                        console.error('Edit form load failed:', status, error); // Debug log
+                        if (xhr.status === 404) {
+                            showAlert('danger', 'User not found.');
+                        } else {
+                            showAlert('danger', 'Error loading edit form.');
+                        }
+                    });
+            });
+
+            // Submit create/edit
+            modalEl.on('submit', 'form', function (e) {
+                e.preventDefault();
+                const form = $(this);
+
+                $.post(form.attr('action'), form.serialize())
+                    .done(res => {
+                        if (res.success) {
+                            modalEl.modal('hide');
+                            tbl.ajax.reload(null, false);
+
+                            const isCreate = form.attr('action').includes('Create');
+                            showAlert('success', isCreate
+                                ? 'New User record created successfully.'
+                                : 'User record updated successfully.');
+                        } else {
+                            $('#modalBody').html(res);
+                        }
+                    })
+                    .fail(() => {
+                        showAlert('danger', 'Error saving user.');
+                    });
+            });
+
+            // Delete record
+            $('#tblUser').on('click', '.delete', function () {
+                if (!confirm('Delete this user?')) return;
+                const id = $(this).data('id');
+
+                $.post('@Url.Action("Delete")', { id })
+                    .done(() => {
+                        tbl.ajax.reload(null, false);
+                        showAlert('warning', 'User record deleted.');
+                    })
+                    .fail(() => {
+                        showAlert('danger', 'Error deleting user.');
+                    });
+            });
+
+            // View record - IMPROVED with simplified logic
+            $('#tblUser').on('click', '.view', function () {
+                const id = $(this).data('id');
+                console.log('View button clicked for ID:', id); // Debug log
+
+                const detailsUrl = '@Url.Action("Details", "SysUser")';
+                $.get(detailsUrl, { id: id })
+                    .done(html => {
+                        console.log('View form loaded successfully'); // Debug log
+                        modalEl.find('.modal-title').text('View User Details');
+                        $('#modalBody').html(html);
+                        modalEl.modal('show');
+                    })
+                    .fail((xhr, status, error) => {
+                        console.error('View form load failed:', status, error); // Debug log
+                        if (xhr.status === 404) {
+                            showAlert('danger', 'User not found.');
+                        } else {
+                            showAlert('danger', 'Error loading user details.');
+                        }
+                    });
+            });
+
+            // Helper function for showing alerts (make sure this exists in your layout)
+            function showAlert(type, message) {
+                // You can implement this based on your preferred alert system
+                // For example, using Bootstrap alerts or toastr
+                console.log(`${type.toUpperCase()}: ${message}`);
+
+                // Example using simple alert (replace with your preferred method)
+                if (type === 'danger') {
+                    alert('Error: ' + message);
+                } else if (type === 'success') {
+                    alert('Success: ' + message);
+                } else if (type === 'warning') {
+                    alert('Warning: ' + message);
+                }
+            }
+        });
+    </script>
+}

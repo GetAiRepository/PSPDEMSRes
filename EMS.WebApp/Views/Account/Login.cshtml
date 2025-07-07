@@ -1,0 +1,107 @@
+﻿@* @{ *@
+@*     ViewData["Title"] = "Login"; *@
+@*     Layout = "~/Views/Shared/_Layout.cshtml"; *@
+@*     ViewData["HideLayoutElements"] = true; *@
+@* } *@
+@{
+    Layout = null;
+}
+
+<!DOCTYPE html>
+
+<html>
+<head>
+    <meta charset="utf-8" />
+    <title>Login | EMS</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+
+    <!-- Local Bootstrap CSS -->
+    <link rel="stylesheet" href="~/lib/bootstrap/css/bootstrap.min.css" />
+    <link href="~/lib/datatables/css/datatables.min.css" rel="stylesheet" />
+    <link href="~/css/site_login.css" rel="stylesheet" />
+    
+<style>
+        html, body {
+            height: 100%;
+            margin: 0;
+            font-family: "Montserrat", "Segoe UI", system-ui, sans-serif;
+            /* Local hero background */
+            /*--bg-image: url('../images/medical-glass-bg1.png');*/
+            --bg-image: url('../images/Login_bg.png');
+                    background: linear-gradient(rgba(255, 255, 255, 0.2), rgba(255, 255, 255, 0.2)), var(--bg-image) center/cover fixed no-repeat;
+
+          
+            color: #212529;
+        }
+
+
+        #demoFont {
+            font-family: "Palatino Linotype", "Book Antiqua", Palatino, serif;
+            font-size: 25px;
+            letter-spacing: 2px;
+            word-spacing: 2px;
+            color: #000000;
+            font-weight: 700;
+            text-decoration: none;
+            font-style: normal;
+            font-variant: small-caps;
+            text-transform: uppercase;
+        }
+</style>
+</head>
+<body class="login-page" style="background-size: cover;">
+    @* Optional warning message if tab duplication is detected *@
+    @* @if (Context.Request.Query["tab"] == "duplicate")
+    {
+        <div class="alert alert-warning text-center">
+            This application is already open in another tab. Continuing may log you out.
+        </div>
+    } *@
+    <div class="container d-flex justify-content-center align-items-center" style="height: 100vh;">
+        <div class="login-form rounded-3" style="width: 30%;height:75vh; padding: 30px; border:1px solid #ffff;background:  #fff !important;">
+            <div class="login-box box-shadow">  
+             <div class="login-title">  
+                  <div class="row">  
+                      <div class="col-sm-12 text-center mb-1">  
+                          <img src="~/images/logo_itc.png" width="80" height="80" alt="">  
+                      </div>  
+                  </div>
+                    <div class="row my-3">
+                        <div class="col-sm-12 text-center ">
+                            <span id="demoFont" class="text-center font-weight-bold ClsForLogo">
+                                PSPDEMS 
+                          </span>  
+                      </div>  
+                  </div>  
+              </div> 
+         </div> 
+            @if (ViewBag.Error != null || TempData["Error"] != null)
+            {
+                <div class="alert alert-warning">
+                    @(ViewBag.Error ?? TempData["Error"])
+                </div>
+            }
+
+            <form asp-action="Login" method="post">
+                <div class="mb-3">
+                    @* <label class="form-label">Username</label> *@
+                    <input type="text" name="user_name" class="form-control rounded-2 glass" placeholder="Username" required />
+                </div>
+                <div class="my-3">
+                    @* <label class="form-label">Password</label> *@
+                    <input type="password" name="password" class="form-control rounded-2 glass" placeholder="**********" required />
+                </div>
+                @* <div class="text-danger">@ViewBag.Error</div> *@
+                <br />
+                <button type="submit" class="btn btn-primary px-5">Log In</button>
+            </form>
+            <span>OR</span>
+            <!-- AD Login Option -->
+            <form asp-action="AutoLogin" method="post">
+                <button type="submit" class="btn btn-primary px-5 my-2">Login with ADID</button>
+            </form>
+     </div> 
+ </div>  
+
+</body>
+</html>

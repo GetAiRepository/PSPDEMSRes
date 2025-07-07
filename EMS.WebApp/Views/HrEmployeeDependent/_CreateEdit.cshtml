@@ -1,0 +1,434 @@
+﻿@model EMS.WebApp.Data.HrEmployeeDependent
+@if (ViewBag.Error != null)
+{
+    <div class="alert alert-warning">
+        @ViewBag.Error
+    </div>
+}
+<form asp-action="@(Model.emp_dep_id == 0 ? "Create" : "Edit")" method="post" id="hrEmployeeDependentForm">
+    @Html.AntiForgeryToken()
+
+    <input asp-for="emp_dep_id" type="hidden" />
+
+    <!-- Display general validation message -->
+    <div asp-validation-summary="ModelOnly" class="text-danger"></div>
+
+    <div class="row mb-3">
+        <div class="col-md-4">
+            <label asp-for="emp_uid" class="form-label">Employee Name <span class="text-danger">*</span></label>
+            <select asp-for="emp_uid" class="form-select glass rounded-2" asp-items="ViewBag.EmpDependentList" id="empUidInput">
+                <option value="">-- Select Employee --</option>
+            </select>
+            <span asp-validation-for="emp_uid" class="text-danger" id="empUidValidation"></span>
+        </div>
+
+        <div class="col-md-4">
+            <label asp-for="dep_name" class="form-label">Dependent Name <span class="text-danger">*</span></label>
+            <input asp-for="dep_name" class="form-control glass rounded-2" id="depNameInput" maxlength="100" placeholder="Enter dependent name" />
+            <div class="d-flex justify-content-between mt-1">
+                <span asp-validation-for="dep_name" class="text-danger" id="depNameValidation"></span>
+                <small class="text-muted">
+                    <span id="depNameCharCount">0</span>/100 characters
+                </small>
+            </div>
+        </div>
+
+        <div class="col-md-4">
+            <label asp-for="dep_dob" class="form-label">Date of Birth</label>
+            <input asp-for="dep_dob" type="date" class="form-control glass rounded-2" id="depDobInput" />
+            <span asp-validation-for="dep_dob" class="text-danger" id="depDobValidation"></span>
+        </div>
+    </div>
+
+    <div class="row mb-3">
+        <div class="col-md-4">
+            <label asp-for="relation" class="form-label">Relation <span class="text-danger">*</span></label>
+            <input asp-for="relation" class="form-control glass rounded-2" id="relationInput" maxlength="50" placeholder="Enter relation" />
+            <div class="d-flex justify-content-between mt-1">
+                <span asp-validation-for="relation" class="text-danger" id="relationValidation"></span>
+                <small class="text-muted">
+                    <span id="relationCharCount">0</span>/50 characters
+                </small>
+            </div>
+        </div>
+
+        <div class="col-md-4">
+            <label asp-for="gender" class="form-label">Gender <span class="text-danger">*</span></label>
+            <select asp-for="gender" class="form-select glass rounded-2" id="genderInput">
+                <option value="">-- Select Gender --</option>
+                <option value="M">Male</option>
+                <option value="F">Female</option>
+                <option value="O">Other</option>
+            </select>
+            <span asp-validation-for="gender" class="text-danger" id="genderValidation"></span>
+        </div>
+
+        <div class="col-md-4">
+            <label asp-for="is_active" class="form-label">Status <span class="text-danger">*</span></label>
+            <div class="d-flex justify-content-around align-items-center">
+                <div class="form-check">
+                    <input class="form-check-input" type="radio" asp-for="is_active" value="true" id="Active">
+                    <label class="form-check-label" for="Active">Active</label>
+                </div>
+                <div class="form-check">
+                    <input class="form-check-input" type="radio" asp-for="is_active" value="false" id="NotActive">
+                    <label class="form-check-label" for="NotActive">Not Active</label>
+                </div>
+            </div>
+            <span asp-validation-for="is_active" class="text-danger" id="isActiveValidation"></span>
+        </div>
+    </div>
+
+    <div class="row mb-3">
+        <div class="col-md-4">
+            <label asp-for="marital_status" class="form-label">Marital Status</label>
+            <select asp-for="marital_status" class="form-select glass rounded-2" id="maritalStatusInput">
+                <option value="">-- Select --</option>
+                <option value="true">Married</option>
+                <option value="false">Single</option>
+            </select>
+            <span asp-validation-for="marital_status" class="text-danger" id="maritalStatusValidation"></span>
+        </div>
+    </div>
+
+    <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+        <button type="submit" class="btn btn-primary" id="submitBtn">
+            @(Model.emp_dep_id == 0 ? "Save" : "Update")
+        </button>
+    </div>
+</form>
+
+@section Scripts {
+    @{
+        await Html.RenderPartialAsync("_ValidationScriptsPartial");
+    }
+
+    <script type="text/javascript">
+        $(document).ready(function() {
+            // Form elements
+            const form = $('#hrEmployeeDependentForm');
+            const submitBtn = $('#submitBtn');
+            const empUidInput = $('#empUidInput');
+            const depNameInput = $('#depNameInput');
+            const depDobInput = $('#depDobInput');
+            const relationInput = $('#relationInput');
+            const genderInput = $('#genderInput');
+            const isActiveInputs = $('input[name="is_active"]');
+            const maritalStatusInput = $('#maritalStatusInput');
+
+            // Character count elements
+            const depNameCharCount = $('#depNameCharCount');
+            const relationCharCount = $('#relationCharCount');
+
+            // Initialize validation
+            form.removeData("validator");
+            form.removeData("unobtrusiveValidation");
+            $.validator.unobtrusive.parse(form);
+
+            // Security patterns to check for
+            const dangerousPatterns = [
+                /<script[^>]*>.*?<\/script>/gi,
+                /javascript:/gi,
+                /vbscript:/gi,
+                /on\w+\s*=/gi,
+                /<iframe/gi,
+                /<object/gi,
+                /<embed/gi,
+                /<form/gi,
+                /eval\s*\(/gi,
+                /expression\s*\(/gi
+            ];
+
+            // Function to check for dangerous input
+            function containsDangerousInput(text) {
+                if (!text) return false;
+                return dangerousPatterns.some(pattern => pattern.test(text));
+            }
+
+            // Character count functions
+            function updateCharCount(input, countElement, maxLength) {
+                const currentLength = input.val().length;
+                countElement.text(currentLength);
+                countElement.removeClass('text-warning text-danger');
+                const warningThreshold = maxLength * 0.8;
+                if (currentLength > warningThreshold && currentLength < maxLength) {
+                    countElement.addClass('text-warning');
+                } else if (currentLength >= maxLength) {
+                    countElement.addClass('text-danger');
+                }
+            }
+
+            // Validation functions
+            function validateEmployee() {
+                const empUid = empUidInput.val();
+                const validationSpan = $('#empUidValidation');
+                let isValid = true;
+
+                validationSpan.text('').removeClass('field-validation-error').hide();
+                empUidInput.removeClass('is-invalid');
+
+                if (!empUid) {
+                    validationSpan.text('Employee is required.')
+                                 .addClass('field-validation-error text-danger')
+                                 .show();
+                    empUidInput.addClass('is-invalid');
+                    isValid = false;
+                }
+
+                return isValid;
+            }
+
+            function validateDependentName() {
+                const depName = depNameInput.val().trim();
+                const validationSpan = $('#depNameValidation');
+                let isValid = true;
+
+                validationSpan.text('').removeClass('field-validation-error').hide();
+                depNameInput.removeClass('is-invalid');
+
+                if (!depName) {
+                    validationSpan.text('Dependent Name is required.')
+                                 .addClass('field-validation-error text-danger')
+                                 .show();
+                    depNameInput.addClass('is-invalid');
+                    isValid = false;
+                } else if (depName.length < 2) {
+                    validationSpan.text('Dependent Name must be at least 2 characters.')
+                                 .addClass('field-validation-error text-danger')
+                                 .show();
+                    depNameInput.addClass('is-invalid');
+                    isValid = false;
+                } else if (depName.length > 100) {
+                    validationSpan.text('Dependent Name cannot exceed 100 characters.')
+                                 .addClass('field-validation-error text-danger')
+                                 .show();
+                    depNameInput.addClass('is-invalid');
+                    isValid = false;
+                } else if (containsDangerousInput(depName)) {
+                    validationSpan.text('Dependent Name contains invalid characters. Script tags and unsafe characters are not allowed.')
+                                 .addClass('field-validation-error text-danger')
+                                 .show();
+                    depNameInput.addClass('is-invalid');
+                    isValid = false;
+                } else if (!/^[a-zA-Z\s\-\.]+$/.test(depName)) {
+                    validationSpan.text('Dependent Name can only contain letters, spaces, hyphens, and dots.')
+                                 .addClass('field-validation-error text-danger')
+                                 .show();
+                    depNameInput.addClass('is-invalid');
+                    isValid = false;
+                }
+
+                return isValid;
+            }
+
+            function validateRelation() {
+                const relation = relationInput.val().trim();
+                const validationSpan = $('#relationValidation');
+                let isValid = true;
+
+                validationSpan.text('').removeClass('field-validation-error').hide();
+                relationInput.removeClass('is-invalid');
+
+                if (!relation) {
+                    validationSpan.text('Relation is required.')
+                                 .addClass('field-validation-error text-danger')
+                                 .show();
+                    relationInput.addClass('is-invalid');
+                    isValid = false;
+                } else if (relation.length < 2) {
+                    validationSpan.text('Relation must be at least 2 characters.')
+                                 .addClass('field-validation-error text-danger')
+                                 .show();
+                    relationInput.addClass('is-invalid');
+                    isValid = false;
+                } else if (relation.length > 50) {
+                    validationSpan.text('Relation cannot exceed 50 characters.')
+                                 .addClass('field-validation-error text-danger')
+                                 .show();
+                    relationInput.addClass('is-invalid');
+                    isValid = false;
+                } else if (containsDangerousInput(relation)) {
+                    validationSpan.text('Relation contains invalid characters. Script tags and unsafe characters are not allowed.')
+                                 .addClass('field-validation-error text-danger')
+                                 .show();
+                    relationInput.addClass('is-invalid');
+                    isValid = false;
+                } else if (!/^[a-zA-Z\s\-]+$/.test(relation)) {
+                    validationSpan.text('Relation can only contain letters, spaces, and hyphens.')
+                                 .addClass('field-validation-error text-danger')
+                                 .show();
+                    relationInput.addClass('is-invalid');
+                    isValid = false;
+                }
+
+                return isValid;
+            }
+
+            function validateGender() {
+                const gender = genderInput.val();
+                const validationSpan = $('#genderValidation');
+                let isValid = true;
+
+                validationSpan.text('').removeClass('field-validation-error').hide();
+                genderInput.removeClass('is-invalid');
+
+                if (!gender) {
+                    validationSpan.text('Gender is required.')
+                                 .addClass('field-validation-error text-danger')
+                                 .show();
+                    genderInput.addClass('is-invalid');
+                    isValid = false;
+                }
+
+                return isValid;
+            }
+
+            function validateDateOfBirth() {
+                const depDob = depDobInput.val();
+                const validationSpan = $('#depDobValidation');
+                let isValid = true;
+
+                validationSpan.text('').removeClass('field-validation-error').hide();
+                depDobInput.removeClass('is-invalid');
+
+                if (depDob) {
+                    const dobDate = new Date(depDob);
+                    const today = new Date();
+                    const age = today.getFullYear() - dobDate.getFullYear();
+                    const monthDiff = today.getMonth() - dobDate.getMonth();
+                    const dayDiff = today.getDate() - dobDate.getDate();
+
+                    // Adjust age if birthday hasn't occurred this year
+                    const actualAge = (monthDiff < 0 || (monthDiff === 0 && dayDiff < 0)) ? age - 1 : age;
+
+                    if (dobDate > today) {
+                        validationSpan.text('Date of Birth cannot be in the future.')
+                                     .addClass('field-validation-error text-danger')
+                                     .show();
+                        depDobInput.addClass('is-invalid');
+                        isValid = false;
+                    } else if (actualAge > 100) {
+                        validationSpan.text('Age cannot exceed 100 years.')
+                                     .addClass('field-validation-error text-danger')
+                                     .show();
+                        depDobInput.addClass('is-invalid');
+                        isValid = false;
+                    }
+                }
+
+                return isValid;
+            }
+
+            function validateStatus() {
+                const isActiveSelected = isActiveInputs.filter(':checked').length > 0;
+                const validationSpan = $('#isActiveValidation');
+                let isValid = true;
+
+                validationSpan.text('').removeClass('field-validation-error').hide();
+                isActiveInputs.removeClass('is-invalid');
+
+                if (!isActiveSelected) {
+                    validationSpan.text('Status is required.')
+                                 .addClass('field-validation-error text-danger')
+                                 .show();
+                    isActiveInputs.addClass('is-invalid');
+                    isValid = false;
+                }
+
+                return isValid;
+            }
+
+            function updateSubmitButton() {
+                const hasErrors = $('.field-validation-error:visible').length > 0 ||
+                                $('.is-invalid').length > 0;
+                submitBtn.prop('disabled', hasErrors);
+            }
+
+            // Event handlers
+            empUidInput.on('change', function() {
+                validateEmployee();
+                updateSubmitButton();
+            });
+
+            depNameInput.on('input keyup paste', function() {
+                updateCharCount($(this), depNameCharCount, 100);
+                validateDependentName();
+                updateSubmitButton();
+            });
+
+            relationInput.on('input keyup paste', function() {
+                updateCharCount($(this), relationCharCount, 50);
+                validateRelation();
+                updateSubmitButton();
+            });
+
+            genderInput.on('change', function() {
+                validateGender();
+                updateSubmitButton();
+            });
+
+            depDobInput.on('change blur', function() {
+                validateDateOfBirth();
+                updateSubmitButton();
+            });
+
+            isActiveInputs.on('change', function() {
+                validateStatus();
+                updateSubmitButton();
+            });
+
+            // Initialize on page load
+            updateCharCount(depNameInput, depNameCharCount, 100);
+            updateCharCount(relationInput, relationCharCount, 50);
+            validateEmployee();
+            validateDependentName();
+            validateRelation();
+            validateGender();
+            validateDateOfBirth();
+            validateStatus();
+            updateSubmitButton();
+
+            // Prevent form submission if validation fails
+            form.on('submit', function(e) {
+                if (!validateEmployee() || !validateDependentName() || !validateRelation() ||
+                    !validateGender() || !validateDateOfBirth() || !validateStatus()) {
+                    e.preventDefault();
+                    return false;
+                }
+
+                // Final check for any visible errors
+                if ($('.field-validation-error:visible').length > 0) {
+                    e.preventDefault();
+                    return false;
+                }
+
+                // Double-check for dangerous input before submission
+                const depName = depNameInput.val().trim();
+                const relation = relationInput.val().trim();
+
+                if (containsDangerousInput(depName) || containsDangerousInput(relation)) {
+                    e.preventDefault();
+                    alert('Invalid input detected. Please remove any script tags or unsafe characters.');
+                    return false;
+                }
+            });
+
+            // Prevent pasting of dangerous content
+            function handleDangerousPaste(input, inputName) {
+                input.on('paste', function(e) {
+                    setTimeout(function() {
+                        const pastedContent = input.val();
+                        if (containsDangerousInput(pastedContent)) {
+                            input.val('');
+                            alert('Pasted content in ' + inputName + ' contains unsafe characters and has been removed.');
+                        }
+                    }, 10);
+                });
+            }
+
+            handleDangerousPaste(depNameInput, 'Dependent Name');
+            handleDangerousPaste(relationInput, 'Relation');
+        });
+    </script>
+}

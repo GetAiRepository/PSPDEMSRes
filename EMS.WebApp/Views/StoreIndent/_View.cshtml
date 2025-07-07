@@ -1,0 +1,913 @@
+﻿@model EMS.WebApp.Data.StoreIndent
+
+@{
+    bool isStoreInventory = Model.Status == "Approved"; // Store Inventory context
+}
+
+<div class="row mb-3">
+    <div class="col-md-4">
+        <label class="form-label">Indent ID</label>
+        <input class="form-control rounded-2" value="@Model.IndentId" readonly />
+    </div>
+
+    <div class="col-md-4">
+        <label class="form-label">Indent Type</label>
+        <input class="form-control rounded-2" value="@Model.IndentType" readonly />
+    </div>
+
+    <div class="col-md-4">
+        <label class="form-label">Status</label>
+        <div class="form-control rounded-2 border-0 d-flex align-items-center">
+            @{
+                var statusClass = Model.Status switch
+                {
+                    "Draft" => "bg-secondary",
+                    "Pending" => "bg-warning",
+                    "Approved" => "bg-success",
+                    "Rejected" => "bg-danger",
+                    _ => "bg-secondary"
+                };
+                var statusIcon = Model.Status switch
+                {
+                    "Draft" => "bi-file-text",
+                    "Pending" => "bi-clock",
+                    "Approved" => "bi-check-circle",
+                    "Rejected" => "bi-x-circle",
+                    _ => "bi-question-circle"
+                };
+            }
+            <span class="badge @statusClass">
+                <i class="@statusIcon me-1"></i>@Model.Status
+            </span>
+        </div>
+    </div>
+</div>
+
+<div class="row mb-3">
+    <div class="col-md-4">
+        <label class="form-label">Indent Raised Date</label>
+        <input class="form-control rounded-2" value="@Model.IndentDate.ToString("dd/MM/yyyy")" readonly />
+    </div>
+
+    <div class="col-md-4">
+        <label class="form-label">Created Date</label>
+        <input class="form-control rounded-2" value="@Model.CreatedDate.ToString("dd/MM/yyyy HH:mm")" readonly />
+    </div>
+    <div class="col-md-4">
+        <label class="form-label">Created By</label>
+        <input class="form-control rounded-2" value="@(Model.CreatedBy ?? "N/A")" readonly />
+    </div>
+</div>
+
+@* Show draft information if status is Draft *@
+@if (Model.Status == "Draft")
+{
+    <div class="row mb-3">
+        <div class="col-12">
+            <div class="alert alert-info">
+                <i class="bi bi-info-circle me-2"></i>
+                <strong>Draft Status:</strong> This indent is still in draft mode. The creator can continue editing and submit it when ready.
+            </div>
+        </div>
+    </div>
+}
+
+@* Show approval/rejection details if status is not Pending or Draft *@
+@if (Model.Status != "Pending" && Model.Status != "Draft")
+{
+    <div class="row mb-3">
+        <div class="col-md-4">
+            <label class="form-label">@(Model.Status == "Approved" ? "Approved By" : "Rejected By")</label>
+            <input class="form-control rounded-2" value="@(Model.ApprovedBy ?? "N/A")" readonly />
+        </div>
+        <div class="col-md-4">
+            <label class="form-label">@(Model.Status == "Approved" ? "Approved Date" : "Rejected Date")</label>
+            <input class="form-control rounded-2" value="@(Model.ApprovedDate?.ToString("dd/MM/yyyy HH:mm") ?? "N/A")" readonly />
+        </div>
+        <div class="col-md-4"></div>
+    </div>
+
+    @if (!string.IsNullOrEmpty(Model.Comments))
+    {
+        <div class="row mb-3">
+            <div class="col-12">
+                <label class="form-label">@(Model.Status == "Approved" ? "Approval" : "Rejection") Comments</label>
+                <div class="alert @(Model.Status == "Approved" ? "alert-success" : "alert-danger") mb-0">
+                    <i class="bi @(Model.Status == "Approved" ? "bi-check-circle" : "bi-x-circle") me-2"></i>
+                    @Model.Comments
+                </div>
+            </div>
+        </div>
+    }
+}
+
+@if (Model.StoreIndentItems?.Any() == true)
+{
+    <div class="row mb-3">
+        <div class="col-12">
+            <label class="form-label"><strong>Medicines (@Model.StoreIndentItems.Count() items)</strong></label>
+            <div class="table-responsive">
+                <table class="table table-striped table-glass glass-table w-100 align-middle">
+                    <thead class="table-light">
+                        <tr>
+                            <th style="width:50px">Sl.</th>
+                            <th style="width:120px">Medicine Name</th>
+                            <th style="width:120px">Company Name</th>
+                            <th style="width:120px">Vendor Code</th>
+                            <th style="width:80px">Raised Qty</th>
+                            <th style="width:80px">Received Qty</th>
+                            <th style="width:80px">Pending Qty</th>
+                            @if (Model.StoreIndentItems.Any(i => i.UnitPrice.HasValue) && !isStoreInventory)
+                            {
+                                <th style="width:100px">Unit Price</th>
+                                <th style="width:120px">Total Amount</th>
+                            }
+                            @* Show Batch No and Expiry Date columns only for Store Inventory (Approved status) *@
+                            @if (isStoreInventory)
+                            {
+                                <th style="width:100px">Batch No</th>
+                                <th style="width:120px">Expiry Date</th>
+                            }
+                            <th style="width:120px">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @for (int i = 0; i < Model.StoreIndentItems.Count; i++)
+                        {
+                            var item = Model.StoreIndentItems.ElementAt(i);
+                            <tr>
+                                <td>@(i + 1)</td>
+                                <td>@item.MedMaster?.MedItemName</td>
+                                <td>@(item.MedMaster?.CompanyName ?? "Not Defined")</td>
+                                <td>@item.VendorCode</td>
+                                <td class="text-center">@item.RaisedQuantity</td>
+                                <td class="text-center">@item.ReceivedQuantity</td>
+                                <td class="text-center">
+                                    <span class="badge @(item.PendingQuantity > 0 ? "bg-warning" : "bg-success")">
+                                        @item.PendingQuantity
+                                    </span>
+                                </td>
+                                @if (Model.StoreIndentItems.Any(i => i.UnitPrice.HasValue) && !isStoreInventory)
+                                {
+                                    <td class="text-end">@(item.UnitPrice?.ToString("₹#,##0.00") ?? "-")</td>
+                                    <td class="text-end">@(item.TotalAmount?.ToString("₹#,##0.00") ?? "-")</td>
+                                }
+                                @* Show Batch No and Expiry Date data only for Store Inventory *@
+                                @if (isStoreInventory)
+                                {
+                                    <td>@(item.BatchNo ?? "-")</td>
+                                    <td>@(item.ExpiryDate?.ToString("dd/MM/yyyy") ?? "-")</td>
+                                }
+                                <td>
+                                    @* Show different edit buttons based on pending quantity *@
+                                    @if (isStoreInventory)
+                                    {
+                                        @if (item.PendingQuantity > 0)
+                                        {
+                                            <!-- Normal inline edit for items with pending quantity -->
+                                            <button class="btn btn-sm btn-secondary edit-medicine-inline" data-id="@item.IndentItemId" title="Update Medicine Item">
+                                                <i class="bi bi-pencil"></i> Edit
+                                            </button>
+                                        }
+                                        else
+                                        {
+                                            <!-- Edit with reason for fully received items -->
+                                            <button class="btn btn-sm btn-warning edit-medicine-with-reason" data-id="@item.IndentItemId" title="Edit with Reason">
+                                                <i class="bi bi-pencil-square"></i> Edit with Reason
+                                            </button>
+                                        }
+                                    }
+                                    else
+                                    {
+                                        @* For non-Store Inventory, check pending quantity and status *@
+                                        @if (item.PendingQuantity > 0 && Model.Status == "Approved")
+                                        {
+                                            <button class="btn btn-sm btn-secondary edit-medicine-inline" data-id="@item.IndentItemId" title="Update Medicine Item">
+                                                <i class="bi bi-pencil"></i> Edit
+                                            </button>
+                                        }
+                                        else if (item.PendingQuantity == 0 && Model.Status == "Approved")
+                                        {
+                                            <!-- Edit with reason for fully received non-Store Inventory items -->
+                                            <button class="btn btn-sm btn-warning edit-medicine-with-reason" data-id="@item.IndentItemId" title="Edit with Reason">
+                                                <i class="bi bi-pencil-square"></i> Edit with Reason
+                                            </button>
+                                        }
+                                        else
+                                        {
+                                            <span class="text-muted">View Only</span>
+                                        }
+                                    }
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                    @* Only show Total Amount section for non-Store Inventory *@
+                    @if (Model.StoreIndentItems.Any(i => i.TotalAmount.HasValue) && !isStoreInventory)
+                    {
+                        <tfoot class="table-secondary">
+                            <tr>
+                                <th colspan="@(Model.StoreIndentItems.Any(i => i.UnitPrice.HasValue) ? "10" : "8")" class="text-end">
+                                    <strong>Total Amount:</strong>
+                                </th>
+                                <th class="text-end">
+                                    <strong>@Model.StoreIndentItems.Sum(i => i.TotalAmount ?? 0).ToString("₹#,##0.00")</strong>
+                                </th>
+                            </tr>
+                        </tfoot>
+                    }
+                </table>
+            </div>
+        </div>
+    </div>
+}
+else
+{
+    <div class="row mb-3">
+        <div class="col-12">
+            <label class="form-label"><strong>Medicines</strong></label>
+            <div class="alert alert-info mb-0">
+                <i class="bi bi-info-circle me-2"></i>No medicines have been added to this indent yet.
+            </div>
+        </div>
+    </div>
+}
+
+<div class="text-end">
+    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+</div>
+
+<!-- Edit Reason Modal for Store Inventory -->
+<div class="modal fade" id="editReasonModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Edit Medicine Item</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="card-body">
+                    <form id="editReasonForm">
+                        <input type="hidden" id="editItemId" />
+
+                        <!-- Medicine Details (Read-only) -->
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label class="form-label">Medicine Name</label>
+                                <input type="text" class="form-control" id="editMedicineName" readonly />
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">Company Name</label>
+                                <input type="text" class="form-control" id="editCompanyName" readonly />
+                            </div>
+                        </div>
+
+                        <div class="row mb-3">
+                            <div class="col-md-4">
+                                <label class="form-label">Vendor Code</label>
+                                <input type="text" class="form-control" id="editVendorCode" readonly />
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label">Raised Qty</label>
+                                <input type="number" class="form-control" id="editRaisedQty" readonly />
+                            </div>
+                        </div>
+
+                        <!-- Editable Fields -->
+                        <div class="row mb-3">
+                            <div class="col-md-4">
+                                <label class="form-label">Received Qty</label>
+                                <input type="number" class="form-control" id="editReceivedQty" min="0" />
+                                <div class="invalid-feedback"></div>
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label">Batch No</label>
+                                <input type="text" class="form-control" id="editBatchNo" maxlength="50" />
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label">Expiry Date</label>
+                                <input type="date" class="form-control" id="editExpiryDate" />
+                            </div>
+                        </div>
+
+                        <!-- Reason for Edit -->
+                        <div class="row mb-3">
+                            <div class="col-12">
+                                <label class="form-label">Reason for Edit <span class="text-danger">*</span></label>
+                                <textarea class="form-control" id="editReason" rows="3"
+                                          placeholder="Please provide a reason for editing this item..." required></textarea>
+                                <div class="invalid-feedback"></div>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" id="saveEditChanges">
+                    <i class="bi bi-check-circle me-1"></i>Save Changes
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    $(document).ready(function() {
+        const isStoreInventory = @(isStoreInventory ? "true" : "false");
+
+        // Handle edit medicine item inline (normal edit)
+        $(document).on('click', '.edit-medicine-inline', function() {
+            const itemId = $(this).data('id');
+            const row = $(this).closest('tr');
+
+            // Use inline editing for items with pending quantity
+            convertRowToEditMode(row, itemId);
+        });
+
+        // Handle edit medicine with reason (for fully received items)
+        $(document).on('click', '.edit-medicine-with-reason', function() {
+            const itemId = $(this).data('id');
+            const row = $(this).closest('tr');
+
+            // Always show the edit reason modal for fully received items
+            showEditReasonModal(row, itemId);
+        });
+
+            function showEditReasonModal(row, itemId) {
+        console.log('showEditReasonModal called with itemId:', itemId);
+
+        // Extract basic data from the row
+        const medicineName = row.find('td:eq(1)').text().trim();
+        const companyName = row.find('td:eq(2)').text().trim();
+        const vendorCode = row.find('td:eq(3)').text().trim();
+        const raisedQty = parseInt(row.find('td:eq(4)').text()) || 0;
+        const currentReceivedQty = parseInt(row.find('td:eq(5)').text()) || 0;
+
+        console.log('Basic data extracted:', { medicineName, companyName, vendorCode, raisedQty, currentReceivedQty });
+
+        // Get table headers to determine column positions
+        const table = row.closest('table');
+        const headerRow = table.find('thead tr');
+        const headers = [];
+
+        headerRow.find('th').each(function(index) {
+            const headerText = $(this).text().trim();
+            headers.push(headerText);
+            console.log(`Header ${index}: "${headerText}"`);
+        });
+
+        console.log('All headers:', headers);
+
+        // Find column indices by header text
+        let batchColumnIndex = -1;
+        let expiryColumnIndex = -1;
+
+        headers.forEach((header, index) => {
+            if (header.toLowerCase().includes('batch')) {
+                batchColumnIndex = index;
+                console.log(`Found Batch column at index ${index}`);
+            }
+            if (header.toLowerCase().includes('expiry')) {
+                expiryColumnIndex = index;
+                console.log(`Found Expiry column at index ${index}`);
+            }
+        });
+
+        // Extract batch number and expiry date using found indices
+        let currentBatchNo = '';
+        let currentExpiryDate = '';
+
+        if (batchColumnIndex >= 0) {
+            currentBatchNo = row.find(`td:eq(${batchColumnIndex})`).text().trim();
+            console.log(`Batch No from column ${batchColumnIndex}:`, currentBatchNo);
+        }
+
+        if (expiryColumnIndex >= 0) {
+            currentExpiryDate = row.find(`td:eq(${expiryColumnIndex})`).text().trim();
+            console.log(`Expiry Date from column ${expiryColumnIndex}:`, currentExpiryDate);
+        }
+
+        // Debug: Log all cell contents for this row
+        console.log('All cell contents for debugging:');
+        row.find('td').each(function(index) {
+            console.log(`Cell ${index}:`, $(this).text().trim());
+        });
+
+        // Populate the modal fields
+        $('#editItemId').val(itemId);
+        $('#editMedicineName').val(medicineName);
+        $('#editCompanyName').val(companyName);
+        $('#editVendorCode').val(vendorCode);
+        $('#editRaisedQty').val(raisedQty);
+        $('#editReceivedQty').val(currentReceivedQty).attr('max', raisedQty);
+        $('#editBatchNo').val(currentBatchNo === '-' ? '' : currentBatchNo);
+
+        // Handle expiry date conversion
+        let expiryDateValue = '';
+        console.log('Processing expiry date:', currentExpiryDate);
+
+        if (currentExpiryDate &&
+            currentExpiryDate !== '-' &&
+            currentExpiryDate !== '' &&
+            currentExpiryDate.toLowerCase() !== 'null' &&
+            currentExpiryDate.toLowerCase() !== 'undefined') {
+
+            // Handle DD/MM/YYYY format (most common)
+            if (currentExpiryDate.includes('/')) {
+                const dateParts = currentExpiryDate.split('/');
+                console.log('Date parts from "/":', dateParts);
+
+                if (dateParts.length === 3) {
+                    const day = dateParts[0].padStart(2, '0');
+                    const month = dateParts[1].padStart(2, '0');
+                    const year = dateParts[2];
+
+                    // Validate that we have proper numbers
+                    if (!isNaN(parseInt(day)) && !isNaN(parseInt(month)) && !isNaN(parseInt(year)) && year.length === 4) {
+                        expiryDateValue = `${year}-${month}-${day}`;
+                        console.log('Successfully converted DD/MM/YYYY to:', expiryDateValue);
+                    } else {
+                        console.log('Invalid date parts detected:', { day, month, year });
+                    }
+                }
+            }
+            // Handle DD-MM-YYYY format
+            else if (currentExpiryDate.includes('-') && currentExpiryDate.length === 10) {
+                const dateParts = currentExpiryDate.split('-');
+                console.log('Date parts from "-":', dateParts);
+
+                if (dateParts.length === 3) {
+                    // Check if it's already in YYYY-MM-DD format
+                    if (dateParts[0].length === 4) {
+                        expiryDateValue = currentExpiryDate;
+                        console.log('Already in YYYY-MM-DD format:', expiryDateValue);
+                    } else {
+                        // Convert from DD-MM-YYYY to YYYY-MM-DD
+                        const day = dateParts[0].padStart(2, '0');
+                        const month = dateParts[1].padStart(2, '0');
+                        const year = dateParts[2];
+                        expiryDateValue = `${year}-${month}-${day}`;
+                        console.log('Converted DD-MM-YYYY to:', expiryDateValue);
+                    }
+                }
+            }
+            // Try parsing as a JavaScript Date object
+            else {
+                const testDate = new Date(currentExpiryDate);
+                if (!isNaN(testDate.getTime())) {
+                    const year = testDate.getFullYear();
+                    const month = String(testDate.getMonth() + 1).padStart(2, '0');
+                    const day = String(testDate.getDate()).padStart(2, '0');
+                    expiryDateValue = `${year}-${month}-${day}`;
+                    console.log('Parsed as Date object to:', expiryDateValue);
+                } else {
+                    console.log('Could not parse date string:', currentExpiryDate);
+                }
+            }
+        } else {
+            console.log('No valid expiry date to process');
+        }
+
+        // Set the expiry date field
+        $('#editExpiryDate').val(expiryDateValue).attr('min', new Date().toISOString().split('T')[0]);
+        console.log('Final expiry date value set in field:', expiryDateValue);
+
+        // Clear reason field and validation states
+        $('#editReason').val('');
+        $('#editReasonForm .is-invalid').removeClass('is-invalid');
+        $('#editReasonForm .invalid-feedback').text('');
+
+        console.log('Modal populated with data:', {
+            itemId,
+            medicineName,
+            companyName,
+            vendorCode,
+            raisedQty,
+            currentReceivedQty,
+            currentBatchNo,
+            currentExpiryDate: currentExpiryDate,
+            convertedExpiryDate: expiryDateValue,
+            batchColumnIndex,
+            expiryColumnIndex
+        });
+
+        // Show the modal
+        $('#editReasonModal').modal('show');
+    }
+
+        // Auto-validate received quantity in the modal
+        $('#editReceivedQty').on('input', function() {
+            const raisedQty = parseInt($('#editRaisedQty').val()) || 0;
+            const receivedQty = parseInt($(this).val()) || 0;
+
+            // Update validation for received quantity
+            if (receivedQty > raisedQty) {
+                $(this).addClass('is-invalid');
+                $(this).siblings('.invalid-feedback').text('Received quantity cannot exceed raised quantity.');
+            } else {
+                $(this).removeClass('is-invalid');
+                $(this).siblings('.invalid-feedback').text('');
+            }
+        });
+
+        // Save changes from the modal
+        $('#saveEditChanges').click(function() {
+            const itemId = $('#editItemId').val();
+            const receivedQty = parseInt($('#editReceivedQty').val()) || 0;
+            const raisedQty = parseInt($('#editRaisedQty').val()) || 0;
+            const batchNo = $('#editBatchNo').val().trim();
+            const expiryDateValue = $('#editExpiryDate').val();
+            const reason = $('#editReason').val().trim();
+
+            // Clear previous validation
+            $('#editReasonForm .is-invalid').removeClass('is-invalid');
+            $('#editReasonForm .invalid-feedback').text('');
+
+            let isValid = true;
+
+            // Validate received quantity
+            if (receivedQty > raisedQty) {
+                $('#editReceivedQty').addClass('is-invalid');
+                $('#editReceivedQty').siblings('.invalid-feedback').text('Received quantity cannot exceed raised quantity.');
+                isValid = false;
+            }
+
+            // Validate reason
+            if (!reason || reason.length < 10) {
+                $('#editReason').addClass('is-invalid');
+                $('#editReason').siblings('.invalid-feedback').text('Please provide a detailed reason (minimum 10 characters).');
+                isValid = false;
+            }
+
+            // Validate expiry date
+            if (expiryDateValue) {
+                const today = new Date();
+                today.setHours(0, 0, 0, 0);
+                const expiry = new Date(expiryDateValue);
+                expiry.setHours(0, 0, 0, 0);
+
+                if (expiry < today) {
+                    $('#editExpiryDate').addClass('is-invalid');
+                    $('#editExpiryDate').siblings('.invalid-feedback').text('Expiry date cannot be in the past.');
+                    isValid = false;
+                }
+            }
+
+            if (!isValid) {
+                return;
+            }
+
+            // Disable button to prevent double submission
+            $(this).prop('disabled', true).html('<i class="spinner-border spinner-border-sm me-1"></i>Saving...');
+
+            // Prepare data object
+            const postData = {
+                indentItemId: itemId,
+                receivedQuantity: receivedQty,
+                batchNo: batchNo,
+                editReason: reason
+            };
+
+            if (expiryDateValue) {
+                postData.expiryDate = new Date(expiryDateValue).toISOString();
+            }
+
+            // Update via AJAX
+            $.post('@Url.Action("UpdateMedicineItemWithReason", "StoreIndent")', postData)
+            .done(function(response) {
+                if (response.success) {
+                    // Find and update the row in the table - use dynamic column detection
+                    const row = $(`button[data-id="${itemId}"]`).closest('tr');
+                    const headerRow = row.closest('table').find('thead tr');
+                    const hasUnitPriceColumn = headerRow.find('th:contains("Unit Price")').length > 0;
+
+                    row.find('td:eq(5)').text(response.data.receivedQuantity);
+                    row.find('td:eq(6)').html(`
+                        <span class="badge ${response.data.pendingQuantity > 0 ? 'bg-warning' : 'bg-success'}">
+                            ${response.data.pendingQuantity}
+                        </span>
+                    `);
+
+                    // Update batch no and expiry date based on column positions
+                    if (isStoreInventory) {
+                        if (hasUnitPriceColumn) {
+                            // Batch at column 9, Expiry at column 10
+                            row.find('td:eq(9)').text(response.data.batchNo || '-');
+                            row.find('td:eq(10)').text(
+                                response.data.expiryDate ?
+                                new Date(response.data.expiryDate).toLocaleDateString('en-GB') :
+                                '-'
+                            );
+                        } else {
+                            // Batch at column 7, Expiry at column 8
+                            row.find('td:eq(7)').text(response.data.batchNo || '-');
+                            row.find('td:eq(8)').text(
+                                response.data.expiryDate ?
+                                new Date(response.data.expiryDate).toLocaleDateString('en-GB') :
+                                '-'
+                            );
+                        }
+                    }
+
+                    // Close the modal
+                    $('#editReasonModal').modal('hide');
+
+                    // Show success message
+                    if (typeof showMessage === 'function') {
+                        showMessage(response.message, 'success');
+                    }
+
+                    // Reload main table if available
+                    if (typeof tbl !== 'undefined' && tbl.ajax) {
+                        tbl.ajax.reload();
+                    }
+                } else {
+                    alert(response.message || 'Failed to update medicine item.');
+                }
+            })
+            .fail(function(xhr, status, error) {
+                console.error('Update medicine item request failed:', status, error);
+                alert('Network error occurred. Please try again.');
+            })
+            .always(function() {
+                // Re-enable button
+                $('#saveEditChanges').prop('disabled', false).html('<i class="bi bi-check-circle me-1"></i>Save Changes');
+            });
+        });
+
+        function convertRowToEditMode(row, itemId) {
+            const currentReceivedQty = parseInt(row.find('td:eq(5)').text()) || 0;
+            const raisedQty = parseInt(row.find('td:eq(4)').text()) || 0;
+            let currentUnitPrice = '';
+            let currentBatchNo = '';
+            let currentExpiryDate = '';
+
+            // Dynamically determine column positions
+            const headerRow = row.closest('table').find('thead tr');
+            const hasUnitPriceColumn = headerRow.find('th:contains("Unit Price")').length > 0;
+
+            // Get unit price value (considering column positioning)
+            if (hasUnitPriceColumn) {
+                const unitPriceText = row.find('td:eq(7)').text().replace('₹', '').replace(',', '').trim();
+                currentUnitPrice = unitPriceText === '-' ? '' : unitPriceText;
+            }
+
+            // Get batch no and expiry date for Store Inventory
+            if (isStoreInventory) {
+                if (hasUnitPriceColumn) {
+                    // Unit Price columns exist, so Batch is at 9 and Expiry is at 10
+                    currentBatchNo = row.find('td:eq(9)').text().trim();
+                    currentExpiryDate = row.find('td:eq(10)').text().trim();
+                } else {
+                    // No Unit Price columns, so Batch is at 7 and Expiry is at 8
+                    currentBatchNo = row.find('td:eq(7)').text().trim();
+                    currentExpiryDate = row.find('td:eq(8)').text().trim();
+                }
+
+                if (currentBatchNo === '-') currentBatchNo = '';
+                if (currentExpiryDate === '-') currentExpiryDate = '';
+                else if (currentExpiryDate) {
+                    // Convert from DD/MM/YYYY to YYYY-MM-DD for input[type=date]
+                    const dateParts = currentExpiryDate.split('/');
+                    if (dateParts.length === 3) {
+                        currentExpiryDate = `${dateParts[2]}-${dateParts[1].padStart(2, '0')}-${dateParts[0].padStart(2, '0')}`;
+                    }
+                }
+            }
+
+            // Store original row content
+            row.data('original-content', row.html());
+
+            // Replace received quantity with input
+            row.find('td:eq(5)').html(`
+                <input type="number" class="form-control form-control-sm edit-received-qty"
+                       value="${currentReceivedQty}" min="0" max="${raisedQty}" />
+            `);
+
+            // Replace unit price with input (if unit price column exists)
+            if (hasUnitPriceColumn && !isStoreInventory) {
+                row.find('td:eq(7)').html(`
+                    <input type="number" class="form-control form-control-sm edit-unit-price"
+                           value="${currentUnitPrice}" min="0" step="0.01" placeholder="Unit Price" />
+                `);
+            } else if (hasUnitPriceColumn && isStoreInventory && currentUnitPrice !== undefined) {
+                // For Store Inventory with price columns
+                row.find('td:eq(7)').html(`
+                    <input type="number" class="form-control form-control-sm edit-unit-price"
+                           value="${currentUnitPrice}" min="0" step="0.01" placeholder="Unit Price" />
+                `);
+            }
+
+            // Replace batch no and expiry date for Store Inventory
+            if (isStoreInventory) {
+                const batchColIndex = hasUnitPriceColumn ? 9 : 7;
+                const expiryColIndex = hasUnitPriceColumn ? 10 : 8;
+
+                row.find(`td:eq(${batchColIndex})`).html(`
+                    <input type="text" class="form-control form-control-sm edit-batch-no"
+                           value="${currentBatchNo}" placeholder="Batch No" maxlength="50" />
+                `);
+
+                row.find(`td:eq(${expiryColIndex})`).html(`
+                    <input type="date" class="form-control form-control-sm edit-expiry-date"
+                           value="${currentExpiryDate}" min="${new Date().toISOString().split('T')[0]}" />
+                `);
+            }
+
+            // Replace action button with save/cancel
+            const actionColumnIndex = row.find('td').length - 1;
+            row.find(`td:eq(${actionColumnIndex})`).html(`
+                <button class="btn btn-sm btn-success save-medicine-inline me-1" data-id="${itemId}" title="Save Changes">
+                    <i class="bi bi-check"></i>Save
+                </button>
+                <button class="btn btn-sm btn-secondary cancel-medicine-inline" title="Cancel">
+                    <i class="bi bi-x"></i>Cancel
+                </button>
+            `);
+
+            // Auto-calculate pending quantity and total amount
+            updateCalculatedFields(row, raisedQty);
+
+            // Add event listeners for auto-calculation
+            row.find('.edit-received-qty, .edit-unit-price').on('input', function() {
+                updateCalculatedFields(row, raisedQty);
+            });
+        }
+
+        function updateCalculatedFields(row, raisedQty) {
+            const receivedQty = parseInt(row.find('.edit-received-qty').val()) || 0;
+            const unitPrice = parseFloat(row.find('.edit-unit-price').val()) || 0;
+            const pendingQty = Math.max(0, raisedQty - receivedQty);
+            const totalAmount = receivedQty * unitPrice;
+
+            // Update pending quantity
+            row.find('td:eq(6)').html(`
+                <span class="badge ${pendingQty > 0 ? 'bg-warning' : 'bg-success'}">
+                    ${pendingQty}
+                </span>
+            `);
+
+            // Update total amount (if column exists)
+            const headerRow = row.closest('table').find('thead tr');
+            const hasUnitPriceColumn = headerRow.find('th:contains("Unit Price")').length > 0;
+
+            if (hasUnitPriceColumn && !isStoreInventory) {
+                row.find('td:eq(8)').text(totalAmount > 0 ? `₹${totalAmount.toFixed(2)}` : '-');
+            } else if (hasUnitPriceColumn && isStoreInventory) {
+                row.find('td:eq(8)').text(totalAmount > 0 ? `₹${totalAmount.toFixed(2)}` : '-');
+            }
+        }
+
+        // Save medicine item inline (for non-Store Inventory)
+        $(document).on('click', '.save-medicine-inline', function() {
+            const itemId = $(this).data('id');
+            const row = $(this).closest('tr');
+            const receivedQty = parseInt(row.find('.edit-received-qty').val()) || 0;
+            const unitPrice = parseFloat(row.find('.edit-unit-price').val()) || null;
+            const raisedQty = parseInt(row.find('td:eq(4)').text()) || 0;
+
+            // Dynamically determine column positions
+            const headerRow = row.closest('table').find('thead tr');
+            const hasUnitPriceColumn = headerRow.find('th:contains("Unit Price")').length > 0;
+
+            // Get batch no and expiry date for Store Inventory
+            let batchNo = null;
+            let expiryDate = null;
+            if (isStoreInventory) {
+                batchNo = row.find('.edit-batch-no').val() || '';
+                const expiryDateValue = row.find('.edit-expiry-date').val();
+                expiryDate = expiryDateValue ? new Date(expiryDateValue).toISOString() : null;
+            }
+
+            // Validate received quantity
+            if (receivedQty > raisedQty) {
+                alert('Received quantity cannot exceed raised quantity.');
+                return;
+            }
+
+            // Validate expiry date for Store Inventory
+            if (isStoreInventory && expiryDate) {
+                const today = new Date();
+                today.setHours(0, 0, 0, 0);
+                const expiry = new Date(expiryDate);
+                expiry.setHours(0, 0, 0, 0);
+
+                if (expiry < today) {
+                    alert('Expiry date cannot be in the past.');
+                    return;
+                }
+            }
+
+            // Disable button to prevent double submission
+            $(this).prop('disabled', true);
+
+            // Prepare data object
+            const postData = {
+                indentItemId: itemId,
+                receivedQuantity: receivedQty,
+                unitPrice: unitPrice
+            };
+
+            // Add batch no and expiry date for Store Inventory
+            if (isStoreInventory) {
+                postData.batchNo = batchNo;
+                if (expiryDate) {
+                    postData.expiryDate = expiryDate;
+                }
+            }
+
+            // Update via AJAX
+            $.post('@Url.Action("UpdateMedicineItem", "StoreIndent")', postData)
+            .done(function(response) {
+                if (response.success) {
+                    // Update row with new values
+                    row.find('td:eq(5)').text(response.data.receivedQuantity);
+                    row.find('td:eq(6)').html(`
+                        <span class="badge ${response.data.pendingQuantity > 0 ? 'bg-warning' : 'bg-success'}">
+                            ${response.data.pendingQuantity}
+                        </span>
+                    `);
+
+                    // Update unit price and total amount if columns exist
+                    if (hasUnitPriceColumn && !isStoreInventory) {
+                        row.find('td:eq(7)').text(response.data.unitPrice ? `₹${response.data.unitPrice.toFixed(2)}` : '-');
+                        row.find('td:eq(8)').text(response.data.totalAmount ? `₹${response.data.totalAmount.toFixed(2)}` : '-');
+                    } else if (hasUnitPriceColumn && isStoreInventory) {
+                        row.find('td:eq(7)').text(response.data.unitPrice ? `₹${response.data.unitPrice.toFixed(2)}` : '-');
+                        row.find('td:eq(8)').text(response.data.totalAmount ? `₹${response.data.totalAmount.toFixed(2)}` : '-');
+
+                        // Update batch no and expiry date
+                        const batchColIndex = 9;
+                        const expiryColIndex = 10;
+                        row.find(`td:eq(${batchColIndex})`).text(response.data.batchNo || '-');
+                        row.find(`td:eq(${expiryColIndex})`).text(
+                            response.data.expiryDate ?
+                            new Date(response.data.expiryDate).toLocaleDateString('en-GB') :
+                            '-'
+                        );
+                    } else if (isStoreInventory) {
+                        // No price columns, just batch and expiry
+                        const batchColIndex = 7;
+                        const expiryColIndex = 8;
+                        row.find(`td:eq(${batchColIndex})`).text(response.data.batchNo || '-');
+                        row.find(`td:eq(${expiryColIndex})`).text(
+                            response.data.expiryDate ?
+                            new Date(response.data.expiryDate).toLocaleDateString('en-GB') :
+                            '-'
+                        );
+                    }
+
+                    // Restore action button based on pending quantity
+                    const actionColumnIndex = row.find('td').length - 1;
+                    if (response.data.pendingQuantity > 0) {
+                        // Normal inline edit for items with pending quantity
+                        row.find(`td:eq(${actionColumnIndex})`).html(`
+                            <button class="btn btn-sm btn-secondary edit-medicine-inline" data-id="${itemId}" title="Update Medicine Item">
+                                <i class="bi bi-pencil"></i> Edit
+                            </button>
+                        `);
+                    } else {
+                        // Edit with reason for fully received items
+                        row.find(`td:eq(${actionColumnIndex})`).html(`
+                            <button class="btn btn-sm btn-warning edit-medicine-with-reason" data-id="${itemId}" title="Edit with Reason">
+                                <i class="bi bi-pencil-square"></i> Edit with Reason
+                            </button>
+                        `);
+                    }
+
+                    // Show success message
+                    if (typeof showMessage === 'function') {
+                        showMessage(response.message, 'success');
+                    }
+
+                    // Reload main table if available
+                    if (typeof tbl !== 'undefined' && tbl.ajax) {
+                        tbl.ajax.reload();
+                    }
+                } else {
+                    alert(response.message || 'Failed to update medicine item.');
+                    // Re-enable button
+                    $(this).prop('disabled', false);
+                }
+            })
+            .fail(function(xhr, status, error) {
+                console.error('Update medicine item request failed:', status, error);
+                alert('Network error occurred. Please try again.');
+                // Re-enable button
+                $(this).prop('disabled', false);
+            });
+        });
+
+        // Cancel medicine item inline edit
+        $(document).on('click', '.cancel-medicine-inline', function() {
+            const row = $(this).closest('tr');
+            const originalContent = row.data('original-content');
+
+            if (originalContent) {
+                row.html(originalContent);
+                row.removeData('original-content');
+            }
+        });
+    });
+</script>

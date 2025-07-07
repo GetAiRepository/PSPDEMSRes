@@ -1,0 +1,49 @@
+﻿@model EMS.WebApp.Data.med_ambulance_master
+
+
+
+<div class="row mb-3">
+    <div class="col-md-6">
+        <label class="form-label">Vehicle Number</label>
+        <input class="form-control rounded-2" value="@Model.vehicle_no" readonly />
+    </div>
+
+    <div class="col-md-3">
+        <label class="form-label">Provider</label>
+        <input class="form-control rounded-2" value="@Model.provider" readonly />
+    </div>
+
+    <div class="col-md-3">
+        <label class="form-label">Vehice Type</label>
+        <input class="form-control rounded-2" value="@Model.vehicle_type" readonly />
+    </div>
+</div>
+
+<div class="row mb-3">
+    <div class="col-md-6">
+        <label class="form-label">Max Capacity</label>
+        <input class="form-control rounded-2" value="@Model.max_capacity" readonly />
+    </div>
+     
+    <div class="col-md-6">
+        <label class="form-label">Active Status</label>
+        <div class="d-flex justify-content-around align-items-center">
+            <div class="form-check">
+                <input class="form-check-input" type="radio" name="isActive" id="Active" value="Y"
+                @(Model.is_active == true ? "checked" : "") disabled />
+                <label class="form-check-label" for="Active">Active</label>
+            </div>
+            <div class="form-check">
+                <input class="form-check-input" type="radio" name="isActive" id="NotActive" value="N"
+                @(Model.is_active == false ? "checked" : "") disabled />
+                <label class="form-check-label" for="NotActive">Not Active</label>
+            </div>
+        </div>
+    </div>
+
+    </div>
+   
+
+<div class="text-end">
+    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+</div>

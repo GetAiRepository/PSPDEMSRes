@@ -1,0 +1,143 @@
+﻿@* @model List<EMS.WebApp.Data.AuditTrail>
+@{
+    ViewData["Title"] = "User Action Logs";
+    var filter = ViewBag.Filter as AuditFilterViewModel;
+}
+
+<div class="container-fluid">
+    <div class="row mb-3">
+        <div class="col-md-6">
+            <h2><i class="fas fa-user-clock"></i> User Action Logs</h2>
+        </div>
+        <div class="col-md-6 text-right">
+            <a href="@Url.Action("Index")" class="btn btn-primary">
+                <i class="fas fa-clipboard-list"></i> Audit Trail
+            </a>
+            <a href="@Url.Action("Summary")" class="btn btn-info">
+                <i class="fas fa-chart-bar"></i> Summary
+            </a>
+        </div>
+    </div>
+
+    <!-- Filter Panel -->
+    <div class="card mb-3">
+        <div class="card-header">
+            <h5 class="card-title mb-0">
+                <i class="fas fa-filter"></i> Filters
+            </h5>
+        </div>
+        <div class="card-body">
+            <form method="get">
+                <div class="row">
+                    <div class="col-md-3">
+                        <label for="userId">User ID</label>
+                        <input type="text" class="form-control" id="userId" name="userId"
+                               value="@filter?.UserId" placeholder="Enter user ID">
+                    </div>
+                    <div class="col-md-3">
+                        <label for="operation">Action</label>
+                        <input type="text" class="form-control" id="operation" name="operation"
+                               value="@filter?.Operation" placeholder="Enter action name">
+                    </div>
+                    <div class="col-md-2">
+                        <label for="fromDate">From Date</label>
+                        <input type="date" class="form-control" id="fromDate" name="fromDate"
+                               value="@filter?.FromDate?.ToString("yyyy-MM-dd")">
+                    </div>
+                    <div class="col-md-2">
+                        <label for="toDate">To Date</label>
+                        <input type="date" class="form-control" id="toDate" name="toDate"
+                               value="@filter?.ToDate?.ToString("yyyy-MM-dd")">
+                    </div>
+                    <div class="col-md-2">
+                        <label>&nbsp;</label>
+                        <div>
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-search"></i> Filter
+                            </button>
+                            <a href="@Url.Action("UserActions")" class="btn btn-outline-secondary">Clear</a>
+                        </div>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- User Actions Table -->
+    <div class="card">
+        <div class="card-header">
+            <h5 class="card-title mb-0">User Actions (@Model.Count)</h5>
+        </div>
+        <div class="card-body">
+            @if (Model.Any())
+            {
+                <div class="table-responsive">
+                    <table class="table table-striped table-sm">
+                        <thead class="thead-dark">
+                            <tr>
+                                <th>Timestamp</th>
+                                <th>User</th>
+                                <th>Action</th>
+                                <th>Controller</th>
+                                <th>Description</th>
+                                <th>Result</th>
+                                <th>Execution Time</th>
+                                <th>IP Address</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var log in Model)
+                            {
+                                <tr>
+                                    <td>
+                                        <small>@log.Timestamp.ToString("yyyy-MM-dd HH:mm:ss")</small>
+                                    </td>
+                                    <td>@log.UserId</td>
+                                    <td>
+                                        <span class="badge badge-secondary">@log.Action</span>
+                                    </td>
+                                    <td>@log.Controller</td>
+                                    <td>
+                                        <small>@log.Description</small>
+                                    </td>
+                                    <td>
+                                        @{
+                                            var resultClass = log.Result switch
+                                            {
+                                                "Success" => "badge-success",
+                                                "Failed" => "badge-danger",
+                                                _ => "badge-secondary"
+                                            };
+                                        }
+                                        <span class="badge @resultClass">@log.Result</span>
+                                        @if (!string.IsNullOrEmpty(log.ErrorMessage))
+                                        {
+                                            <i class="fas fa-exclamation-triangle text-warning"
+                                               title="@log.ErrorMessage"></i>
+                                        }
+                                    </td>
+                                    <td>
+                                        @if (log.ExecutionTime.HasValue)
+                                        {
+                                            <small>@log.ExecutionTime.Value.TotalMilliseconds.ToString("F0")ms</small>
+                                        }
+                                    </td>
+                                    <td>
+                                        <small>@log.IpAddress</small>
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            }
+            else
+            {
+                <div class="text-center py-4">
+                    <i class="fas fa-search fa-3x text-muted mb-3"></i>
+                    <p class="text-muted">No user action logs found for the selected criteria.</p>
+                </div>
+            }
+        </div>
+    </div>
+</div> *@

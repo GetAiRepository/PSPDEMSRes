@@ -1,0 +1,23 @@
+﻿@model EMS.WebApp.Data.SysAttachScreenRole
+
+<div class="row mb-3">
+
+    <div class="col-md-6">
+        <label class="form-label">Role Name</label>
+        <input class="form-control rounded-2" value="@Model.SysRole?.role_name" readonly />
+    </div>
+    <div class="col-md-6">
+        <label class="form-label">Screen Name</label>
+        @foreach (var name in (List<string>)ViewBag.ScreenNames)
+        {
+            <span class="badge bg-info text-dark">@name</span>
+        }
+    </div>
+
+</div>
+
+
+
+<div>
+    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+</div>

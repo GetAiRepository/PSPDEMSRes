@@ -1,0 +1,86 @@
+﻿@model EMS.WebApp.Data.MedRefHospital
+
+<div class="row mb-3">
+    <div class="col-md-6">
+        <label class="form-label">Hospital Name</label>
+        <input class="form-control rounded-2" value="@Model.hosp_name" readonly />
+    </div>
+    <div class="col-md-3">
+        <label class="form-label">Hospital Code</label>
+        <input class="form-control rounded-2" rows="3" value="@Model.hosp_code" readonly />
+    </div>
+    <div class="col-md-3">
+        <label class="form-label">Speciality</label>
+        <input class="form-control rounded-2" rows="3" value="@Model.speciality" readonly />
+    </div>
+</div>
+<div class="row mb-3">
+    <div class="col-md-6">
+        <label class="form-label">Address</label>
+        <textarea class="form-control rounded-2" rows="3" readonly>@Model.address </textarea>
+    </div>
+    <div class="col-md-6">
+        <label class="form-label">Description</label>
+        <textarea class="form-control rounded-2" rows="3" readonly>@Model.description </textarea>
+    </div>
+</div>
+<div class="row mb-3">
+   
+    <div class="col-md-6">
+        <label class="form-label">Tax Category</label>
+        <div class="d-flex justify-content-around align-items-center">
+            <div class="form-check">
+                <input class="form-check-input" type="radio" name="tax_category" id="taxable" value="T" @(Model.tax_category == "T" ? "checked" : "")>
+                <label class="form-check-label" for="taxable">
+                    Taxable
+                </label>
+            </div>
+            <div class="form-check">
+                <input class="form-check-input" type="radio" name="tax_category" id="nonTaxable" value="N" @(Model.tax_category == "N" ? "checked" : "")>
+                <label class="form-check-label" for="nonTaxable">
+                    Non-Taxable
+                </label>
+            </div>
+        </div>
+       
+    </div>
+    <div class="col-md-6">
+        <label class="form-label">Vendor Name</label>
+        <input class="form-control rounded-2" rows="3" value="@Model.vendor_name" readonly />
+    </div>
+</div>
+<div class="row mb-3">
+    <div class="col-md-3">
+        <label class="form-label">Vendor Code</label>
+        <input class="form-control rounded-2" rows="3" value="@Model.vendor_code" readonly />
+    </div>
+    <div class="col-md-3">
+        <label class="form-label">Contact Person Name</label>
+        <input class="form-control rounded-2" rows="3" value="@Model.contact_person_name" readonly />
+    </div>
+    <div class="col-md-6">
+        <label class="form-label">Contact Person Email Id</label>
+        <input class="form-control rounded-2" rows="3" value="@Model.contact_person_email_id" readonly />
+    </div>
+</div>
+<div class="row mb-3">
+    <div class="col-md-3">
+        <label class="form-label">Mobile Number One</label>
+        <input class="form-control rounded-2" rows="3" value="@Model.mobile_number_1" readonly />
+    </div>
+    <div class="col-md-3">
+        <label class="form-label">Mobile Number Two</label>
+        <input class="form-control rounded-2" rows="3" value="@Model.mobile_number_2" readonly />
+    </div>
+    <div class="col-md-3">
+        <label class="form-label">Phone Number One</label>
+        <input class="form-control rounded-2" rows="3" value="@Model.phone_number_1" readonly />
+    </div>
+    <div class="col-md-3">
+    <label class="form-label">Phone Number Two</label>
+        <input class="form-control rounded-2" rows="3" value="@Model.phone_number_2" readonly />
+</div>
+</div>
+<div class="text-end">
+    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+</div>

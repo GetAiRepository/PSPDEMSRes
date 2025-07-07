@@ -1,0 +1,22 @@
+﻿@model EMS.WebApp.Data.MedCategory
+
+<div class="row mb-2">
+    
+    <div class="col-md-12">
+        <label class="form-label">Name</label>
+        <input class="form-control rounded-2" value="@Model.MedCatName" readonly />
+    </div>
+</div>
+<div class="row mb-2">
+    <div class="col-md-12">
+        <label class="form-label">Description</label>
+        <input class="form-control rounded-2" value="@Model.Description" readonly />
+    </div>
+    <div class="col-md-12">
+        <label class="form-label">Remarks</label>
+        <input class="form-control rounded-2" value="@Model.Remarks" readonly />
+    </div>
+</div>
+<div class="text-end">
+    <button class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+</div>

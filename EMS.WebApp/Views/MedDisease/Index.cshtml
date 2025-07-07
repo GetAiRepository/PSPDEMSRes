@@ -1,0 +1,117 @@
+﻿@{
+    ViewData["Title"] = "Disease Master";
+}
+<div class="d-flex justify-content-end mb-3">
+    <button id="btnCreate" class="btn btn-primary">Add New</button>
+</div>
+<table id="tblDiseases" class="table table-striped table-glass glass-table">
+    <thead>
+        <tr>
+            <th>ID</th>
+            <th>Name</th>
+            <th>Description</th>
+            <th style="width:120px">Actions</th>
+        </tr>
+    </thead>
+    <tbody></tbody>
+</table>
+
+<!-- Modal -->
+<div class="modal fade" id="modalDisease" tabindex="-1">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+        <div class="modal-content glass">
+            <div class="modal-header">
+                <h5 class="modal-title"></h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body" id="modalBody"></div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+                $(function () {
+          const modalEl = $('#modalDisease');
+          modalEl.appendTo('body');
+          modalEl.modal({ backdrop: 'static', keyboard: false, show: false });
+        // Function to truncate text
+        function truncateText(data, maxLength = 20) {
+          if (data && data.length > maxLength) {
+            return data.substring(0, maxLength) + '...';
+          }
+          return data;
+        }
+          var tbl = $('#tblDiseases').DataTable({
+            ajax: { url: '@Url.Action("LoadData")', dataSrc: 'data' },
+            columns: [
+              { data: 'diseaseId' },
+              { data: 'diseaseName' },
+              { data: 'diseaseDesc', render: function(data) {return truncateText(data);} },
+              {
+                data: 'diseaseId',
+                render: id => `
+                  <button class="btn btn-sm btn-info view me-1" data-id="${id}">View</button>
+                  <button class="btn btn-sm btn-secondary edit me-1" data-id="${id}">Edit</button>
+                  <button class="btn btn-sm btn-danger delete" data-id="${id}">Del</button>`
+              }
+            ]
+          });
+
+          $('#btnCreate').click(() =>
+            $.get('@Url.Action("Create")').done(html => {
+              modalEl.find('.modal-title').text('Add Disease');
+              $('#modalBody').html(html);
+              modalEl.modal('show');
+            })
+          );
+
+          $('#tblDiseases').on('click', '.edit', function () {
+            const id = $(this).data('id');
+            $.get(`@Url.Action("Edit")/${id}`).done(html => {
+              modalEl.find('.modal-title').text('Edit Disease');
+              $('#modalBody').html(html);
+              modalEl.modal('show');
+            });
+          });
+
+          $('#tblDiseases').on('click', '.view', function (e) {
+            if ($(e.target).is('button')) {
+              const id = $(this).data('id');
+              $.get(`@Url.Action("Details")/${id}`).done(html => {
+                modalEl.find('.modal-title').text('View Disease');
+                $('#modalBody').html(html);
+                modalEl.modal('show');
+              });
+            }
+          });
+
+          modalEl.on('submit', 'form', function (e) {
+            e.preventDefault();
+            const form = $(this);
+            $.post(form.attr('action'), form.serialize()).done(res => {
+              if (res.success) {
+                modalEl.modal('hide');
+                tbl.ajax.reload(null, false);
+                const isCreate = form.attr('action').endsWith('Create');
+                showAlert('success', isCreate ? 'New disease record created successfully.' : 'Disease record updated successfully.');
+              } else {
+                $('#modalBody').html(res);
+              }
+            });
+          });
+
+          $('#tblDiseases').on('click', '.delete', function () {
+            if (!confirm('Delete this?')) return;
+            const id = $(this).data('id');
+            $.post('@Url.Action("Delete")', { id }).done(() => {
+              tbl.ajax.reload(null, false);
+              showAlert('warning', 'Disease record deleted.');
+            });
+          });
+        });
+
+
+
+    </script>
+}

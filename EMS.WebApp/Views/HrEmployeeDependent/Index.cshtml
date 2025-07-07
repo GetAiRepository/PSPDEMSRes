@@ -1,0 +1,134 @@
+﻿@{
+    ViewData["Title"] = "Employee Dependent Master";
+}
+<div class="d-flex justify-content-end mb-3">
+    <button id="btnCreate" class="btn btn-primary">+ Employee Dependent</button>
+</div>
+<table id="tblEmployeeDependent" class="table table-striped table-glass glass-table">
+    <thead>
+        <tr>
+            <th>Sl.No</th>
+            <th>Employee Name</th>
+            <th>Dependent Name</th>
+            <th>Dependent Dob</th>
+            <th>Relation</th>
+            <th>Gender</th>
+            <th>Status</th>
+            <th>Marital Status</th>
+            <th style="width:120px;">Actions</th>
+        </tr>
+    </thead>
+    <tbody></tbody>
+</table>
+<!-- Modal -->
+<div class="modal fade" id="modalEmployeeDependent" tabindex="-1">
+    <div class="modal-dialog modal-xl modal-dialog-centered">
+        <div class="modal-content glass">
+            <div class="modal-header">
+                <h5 class="modal-title"></h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body" id="modalBody"></div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+                $(function () {
+          const modalEl = $('#modalEmployeeDependent');
+          modalEl.appendTo('body');
+          modalEl.modal({ backdrop: 'static', keyboard: false, show: false });
+
+          var tbl = $('#tblEmployeeDependent').DataTable({
+            ajax: { url: '@Url.Action("LoadData")', dataSrc: 'data' },
+            columns: [
+              { data: 'emp_dep_id' },
+              { data: 'emp_name' },
+              { data: 'dep_name' },
+              { data: 'dep_dob' },
+              { data: 'relation' },
+              {
+                data: 'gender', render: function (data) {
+                  if (data === 'M') return 'Male';
+                  if (data === 'F') return 'Female';
+                  if (data === 'O') return 'Other';
+                  return data;
+                }
+              },
+              { data: 'is_active' },
+              {
+                data: 'marital_status', render: function (data) {
+                  if (data === true) return 'Married';
+                  if (data === false) return 'Single';
+                  return data;
+                }
+              },
+              {
+                data: 'emp_dep_id', render: id => `
+                  <button class="btn btn-sm btn-info view me-1" data-id="${id}">View</button>
+                  <button class="btn btn-sm btn-secondary edit me-1" data-id="${id}">Edit</button>
+                  <button class="btn btn-sm btn-danger delete" data-id="${id}">Del</button>`
+              }
+            ]
+          });
+
+          $('#btnCreate').click(() => {
+            $.get('@Url.Action("Create")').done(html => {
+              modalEl.find('.modal-title').text('Add Employee Dependent');
+              $('#modalBody').html(html);
+              modalEl.modal('show');
+            });
+          });
+
+          $('#tblEmployeeDependent').on('click', '.edit', function () {
+            const id = $(this).data('id');
+            $.get(`@Url.Action("Edit")/${id}`).done(html => {
+              modalEl.find('.modal-title').text('Edit Employee Dependent');
+              $('#modalBody').html(html);
+              modalEl.modal('show');
+            });
+          });
+
+          $('#tblEmployeeDependent').on('click', '.view', function (e) {
+            if ($(e.target).is('button')) {
+              const id = $(this).data('id');
+              $.get(`@Url.Action("Details")/${id}`).done(html => {
+                modalEl.find('.modal-title').text('View Employee Dependent Master');
+                $('#modalBody').html(html);
+                modalEl.modal('show');
+              });
+            }
+          });
+
+          modalEl.on('submit', 'form', function (e) {
+            e.preventDefault();
+            const form = $(this);
+            $.post(form.attr('action'), form.serialize())
+              .done(res => {
+                if (res.success) {
+                  modalEl.modal('hide');
+                  tbl.ajax.reload(null, false);
+                  const isCreate = form.attr('action').endsWith('Create');
+                  showAlert('success', isCreate
+                    ? 'New Employee Dependent record created successfully.'
+                    : 'Employee Dependent record updated successfully.');
+                } else {
+                  $('#modalBody').html(res);
+                }
+              });
+          });
+
+          $('#tblEmployeeDependent').on('click', '.delete', function () {
+            if (!confirm('Delete this?')) return;
+            const id = $(this).data('id');
+            $.post('@Url.Action("Delete")', { id })
+              .done(() => {
+                tbl.ajax.reload(null, false);
+                showAlert('warning', 'Employee Dependent record deleted.');
+              });
+          });
+        });
+
+    </script>
+}

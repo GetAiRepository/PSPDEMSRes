@@ -1,0 +1,38 @@
+﻿@model EMS.WebApp.Data.MedMaster
+
+<div class="row mb-2">
+    @* <div class="col-md-4">
+        <label class="form-label">ID</label>
+        <input class="form-control rounded-2" value="@Model.MedItemId" readonly />
+    </div> *@
+    <div class="col-md-4">
+        <label class="form-label">Name</label>
+        <input class="form-control rounded-2" value="@Model.MedItemName" readonly />
+    </div>
+    <div class="col-md-4">
+        <label class="form-label">Base Name</label>
+        <input class="form-control rounded-2" value="@Model.MedBase?.BaseName" readonly />
+    </div>
+</div>
+<div class="row mb-2">
+    @* <div class="col-md-3">
+        <label class="form-label">Safe Dose</label>
+        <input class="form-control rounded-2" value="@Model.SafeDose" readonly />
+    </div> *@
+    <div class="col-md-4">
+        <label class="form-label">Company</label>
+        <input class="form-control rounded-2" value="@Model.CompanyName" readonly />
+    </div>
+    @* <div class="col-md-5">
+        <label class="form-label">Potency</label>
+        <input class="form-control rounded-2" value="@Model.Potency" readonly />
+    </div> *@
+    <div class="col-md-4">
+        <label class="form-label">Reorder Limit</label>
+        <input class="form-control rounded-2" value="@Model.ReorderLimit" readonly />
+    </div>
+</div>
+
+<div class="text-end">
+    <button class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+</div>

@@ -1,0 +1,1461 @@
+﻿@{
+    ViewData["Title"] = "Doctor Diagnosis";
+    var shouldMaskData = ViewBag.ShouldMaskData ?? true;
+    var userRole = ViewBag.UserRole ?? "";
+}
+
+<div id="alertContainer"></div>
+
+<!-- Store masking information -->
+<input type="hidden" id="shouldMaskData" value="@shouldMaskData.ToString().ToLower()" />
+<input type="hidden" id="userRole" value="@userRole" />
+
+<!-- Doctor Diagnosis Workflow Page -->
+<div class="glass p-4 shadow-sm">
+    <h2 class="h5 mb-3">Doctor Diagnosis</h2>
+
+    <!-- 1️⃣ Search employee -->
+    <form class="row gx-2 gy-3 align-items-end mb-4" id="frmEmpSearch">
+        <div class="col-sm-3 col-md-2">
+            <label class="form-label" for="visitType">Visit Type</label>
+            <select id="visitType" class="form-select glass" required>
+                <option value="Regular Visitor" selected>Regular Visitor</option>
+                <option value="First Aid or Emergency">First Aid or Emergency</option>
+            </select>
+        </div>
+        <div class="col-sm-3 col-md-2">
+            <label class="form-label" for="empId">Emp ID</label>
+            <input type="text" id="empId" class="form-control glass" autocomplete="off" required />
+        </div>
+        <div class="col-sm-3 col-md-3">
+            <label class="form-label" for="examDate">Examination Date</label>
+            <input type="date" id="examDate" class="form-control glass" value="@DateTime.Now.ToString("yyyy-MM-dd")" />
+        </div>
+        <div class="col-sm-4 col-md-3">
+            <label class="form-label" for="dependent">Dependent Name</label>
+            <select id="dependent" class="form-select glass">
+                <option>Self</option>
+            </select>
+        </div>
+        <div class="col-auto">
+            <button class="btn btn-sm btn-primary" type="submit">Go</button>
+        </div>
+        @if (!shouldMaskData && (userRole.ToLower() == "doctor"))
+        {
+            <div class="col-auto" id="pendingApprovalContainer" style="display: none;">
+                <button class="btn btn-sm btn-warning position-relative" type="button" id="pendingApprovalBtn">
+                    <i class="bi bi-clipboard-check"></i> Pending Approval
+                    <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger" id="pendingCount" style="display: none;">
+                        0
+                    </span>
+                </button>
+            </div>
+        }
+    </form>
+
+    <!-- 2️⃣ Employee Details Container -->
+    <div id="empDetailsContainer"></div>
+
+    <!-- 3️⃣ Diagnosis details -->
+    <div id="diagSection" style="display:none;">
+        <div class="row g-3 mb-4">
+            <div class="col-md-3">
+                <label class="form-label" for="bloodPressure">Blood Pressure</label>
+                <input id="bloodPressure" class="form-control glass" placeholder="e.g. 120/80" @(shouldMaskData ? "disabled" : "") />
+            </div>
+            <div class="col-md-3">
+                <label class="form-label" for="pulse">Pulse</label>
+                <input id="pulse" class="form-control glass" placeholder="e.g. 72 bpm" @(shouldMaskData ? "disabled" : "") />
+            </div>
+            <div class="col-md-3">
+                <label class="form-label" for="temperature">Temperature</label>
+                <input id="temperature" class="form-control glass" placeholder="e.g. 98.6°F" @(shouldMaskData ? "disabled" : "") />
+            </div>
+            <div class="col-md-3 d-flex align-items-end">
+                @if (!shouldMaskData)
+                {
+                    <button class="btn btn-sm btn-primary w-100" data-bs-toggle="modal" data-bs-target="#prescriptionModal">
+                        Prescription
+                    </button>
+                }
+                else
+                {
+                    <button class="btn btn-sm btn-secondary w-100" disabled title="You don't have permission to create prescriptions">
+                        Prescription (No Access)
+                    </button>
+                }
+            </div>
+        </div>
+
+        <div class="table-responsive mb-4">
+            <table class="table table-sm glass-table w-100 align-middle" id="diagnosesTable">
+                <thead>
+                    <tr>
+                        <th style="width:60px">Sl.</th>
+                        <th>Diagnosis</th>
+                        <th>Last visit</th>
+                        <th>Action</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <!-- Previous diagnoses will be loaded here -->
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- 4️⃣ Enhanced Prescription modal with batch tracking -->
+<div class="modal fade" id="prescriptionModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-xl">
+        <div class="modal-content glass p-3">
+            <div class="modal-header border-0 pb-0">
+                <h5 class="modal-title">
+                    <i class="bi bi-file-medical"></i> Prescription - Batch Tracked Medicine
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="frmRx" class="row g-3 mb-3">
+                    <div class="col-lg-6">
+                        <label class="form-label" for="diseaseSelect">
+                            <i class="bi bi-clipboard-pulse"></i> Disease Diagnosed
+                        </label>
+                        <select id="diseaseSelect" class="form-select glass" multiple size="4">
+                            <!-- Diseases will be loaded dynamically -->
+                        </select>
+                        <div class="form-text">Hold Ctrl to select multiple diseases</div>
+                    </div>
+                    <div class="col-lg-6">
+          
+                        <button class="btn btn-sm btn-outline-primary" type="button" id="btnAddMedRx">
+                            <i class="bi bi-plus-lg"></i> Add medicine
+                        </button>
+                        <div class="form-text">
+                            <i class="bi bi-info-circle"></i> Medicines are sorted by expiry date (expiring soon first)
+                        </div>
+                    </div>
+                </form>
+
+                <!-- Stock validation alert container -->
+                <div id="stockValidationContainer"></div>
+
+                <div class="table-responsive">
+                    <table class="table table-sm glass-table w-100 align-middle" id="tblRxMeds">
+                        <thead>
+                            <tr>
+                                <th style="width:50px">Sl.</th>
+                                <th>Medicine (Batch)</th>
+                                <th style="width:100px">Available Stock</th>
+                                <th style="width:100px">Quantity</th>
+                                <th style="width:120px">Dose</th>
+                                <th style="width:100px">Expiry</th>
+                                <th style="width:80px">Action</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr id="noMedicineRow">
+                                <td colspan="7" class="text-center text-muted">
+                                    <i class="bi bi-info-circle"></i> No medicines added yet. Click "Add medicine with batch" to start.
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            <div class="modal-footer border-0 pt-0">
+                <button class="btn btn-primary btn-sm" id="savePrescriptionBtn">
+                    <i class="bi bi-check-circle"></i> Save Prescription
+                </button>
+                <button class="btn btn-outline-primary btn-sm" data-bs-dismiss="modal">Cancel</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- View Prescription Modal -->
+<div class="modal fade" id="viewPrescriptionModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-xl modal-dialog-scrollable z-n1">
+        <div class="modal-content glass p-3" style="margin-top:280px">
+            <div class="modal-header border-0 pb-0">
+                <h5 class="modal-title">View Prescription Details</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <!-- Loading state -->
+                <div id="prescriptionLoadingState" class="text-center py-4">
+                    <div class="spinner-border spinner-border-sm me-2" role="status"></div>
+                    Loading prescription details...
+                </div>
+
+                <!-- Prescription content -->
+                <div id="prescriptionContent" style="display: none;">
+                    <!-- Employee & Prescription Info -->
+                    <div class="row mb-4">
+                        <div class="col-md-6">
+                            <div class="glass p-3">
+                                <h6 class="mb-3">Employee Information</h6>
+                                <div class="row g-2 small">
+                                    <div class="col-6">
+                                        <label class="form-label text-muted mb-0">Employee ID</label>
+                                        <div class="fw-medium" id="viewEmpId"></div>
+                                    </div>
+                                    <div class="col-6">
+                                        <label class="form-label text-muted mb-0">Name</label>
+                                        <div class="fw-medium" id="viewEmpName"></div>
+                                    </div>
+                                    <div class="col-6">
+                                        <label class="form-label text-muted mb-0">Department</label>
+                                        <div class="fw-medium" id="viewEmpDept"></div>
+                                    </div>
+                                    <div class="col-6">
+                                        <label class="form-label text-muted mb-0">Plant</label>
+                                        <div class="fw-medium" id="viewEmpPlant"></div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="glass p-3">
+                                <h6 class="mb-3">Prescription Information</h6>
+                                <div class="row g-2 small">
+                                    <div class="col-6">
+                                        <label class="form-label text-muted mb-0">Prescription Date</label>
+                                        <div class="fw-medium" id="viewPrescDate"></div>
+                                    </div>
+                                    <div class="col-6">
+                                        <label class="form-label text-muted mb-0">Doctor</label>
+                                        <div class="fw-medium" id="viewDoctor"></div>
+                                    </div>
+                                    <div class="col-6">
+                                        <label class="form-label text-muted mb-0">Blood Pressure</label>
+                                        <div class="fw-medium" id="viewBP"></div>
+                                    </div>
+                                    <div class="col-6">
+                                        <label class="form-label text-muted mb-0">Pulse</label>
+                                        <div class="fw-medium" id="viewPulse"></div>
+                                    </div>
+                                    <div class="col-12">
+                                        <label class="form-label text-muted mb-0">Temperature</label>
+                                        <div class="fw-medium" id="viewTemperature"></div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Diagnosed Diseases -->
+                    <div class="mb-4">
+                        <div class="glass p-3">
+                            <h6 class="mb-3">Diagnosed Diseases</h6>
+                            <div id="viewDiseases">
+                                <p class="text-muted small">No diseases diagnosed.</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Prescribed Medicines -->
+                    <div class="mb-4">
+                        <div class="glass p-3">
+                            <h6 class="mb-3">Prescribed Medicines</h6>
+                            <div class="table-responsive">
+                                <table class="table table-sm glass-table w-100 align-middle" id="viewMedicinesTable">
+                                    <thead>
+                                        <tr>
+                                            <th style="width:60px">Sl.</th>
+                                            <th>Medicine</th>
+                                            <th style="width:100px">Quantity</th>
+                                            <th>Dose</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <tr>
+                                            <td colspan="4" class="text-center text-muted">No medicines prescribed.</td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Remarks -->
+                    <div id="remarksSection" style="display: none;">
+                        <div class="glass p-3">
+                            <h6 class="mb-3">Remarks</h6>
+                            <p id="viewRemarks" class="mb-0"></p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Error state -->
+                <div id="prescriptionErrorState" style="display: none;" class="text-center py-4">
+                    <div class="text-danger">
+                        <i class="bi bi-exclamation-triangle me-2"></i>
+                        <span id="prescriptionErrorMessage">Error loading prescription details.</span>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer border-0 pt-0">
+                <button class="btn btn-outline-primary btn-sm" data-bs-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Pending Approvals Modal -->
+<div class="modal fade" id="pendingApprovalsModal" tabindex="-1" aria-labelledby="pendingApprovalsModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-xl modal-dialog-scrollable">
+        <div class="modal-content">
+            <div class="modal-header bg-primary text-white">
+                <h5 class="modal-title" id="pendingApprovalsModalLabel">
+                    <i class="bi bi-clipboard-check"></i> Pending Prescription Approvals
+                    <span class="badge bg-warning ms-2" id="pendingModalBadge">0 Pending</span>
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body" style="max-height: 70vh; overflow-y: auto;" id="pendingApprovalsModalBody">
+                <!-- Content will be loaded here -->
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">
+                    <i class="bi bi-x-circle"></i> Close
+                </button>
+                <button type="button" class="btn btn-success" id="approveAllSelectedBtn" disabled>
+                    <i class="bi bi-check-all"></i> Approve All Selected
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Reject Reason Modal -->
+<div class="modal fade" id="rejectReasonModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog ">
+        <div class="modal-content">
+            <div class="modal-header bg-danger text-white">
+                <h5 class="modal-title">
+                    <i class="bi bi-x-circle"></i> Reject Prescription
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="mb-3">
+                    <label for="rejectionReason" class="form-label">Rejection Reason <span class="text-danger">*</span></label>
+                    <textarea class="form-control" id="rejectionReason" rows="4"
+                              placeholder="Please provide a detailed reason for rejecting this prescription..."
+                              required></textarea>
+                    <div class="form-text">Minimum 10 characters required</div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-danger" id="confirmRejectBtn">
+                    <i class="bi bi-x-circle"></i> Reject Prescription
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script src="~/js/jquery-3.6.0.min.js"></script>
+    <link rel="stylesheet" href="~/css/jquery-ui-1.13.2.css">
+    <script src="~/js/jquery-ui-1.13.2.min.js"></script>
+
+    <script>
+        let prescriptionData = { diseases: [], medicines: [] };
+        let currentEmpId = '';
+        let currentVisitType = 'Regular Visitor'; // Track visit type
+        let currentPrescriptionId = null; // For rejection modal
+
+        // Get masking info
+        const shouldMaskData = $('#shouldMaskData').val() === 'true';
+        const userRole = $('#userRole').val();
+
+        // Masking utility function
+        function maskValue(value) {
+            return shouldMaskData ? '*****' : (value || '');
+        }
+
+        $(document).ready(function () {
+            // Load prescription data (diseases and medicines with batch info)
+            loadPrescriptionData();
+
+            // Check user role and show pending approval button if doctor
+            if (!shouldMaskData && userRole.toLowerCase() === 'doctor') {
+                checkUserRoleAndInitialize();
+            }
+
+            // Employee ID autocomplete
+            $("#empId").autocomplete({
+                source: function (request, response) {
+                    $.ajax({
+                        url: '@Url.Action("SearchEmployeeIds", "DoctorDiagnosis")',
+                        data: { term: request.term },
+                        success: function (data) {
+                            response(data);
+                        }
+                    });
+                },
+                minLength: 1
+            });
+
+            // Track visit type changes
+            $('#visitType').on('change', function() {
+                currentVisitType = $(this).val();
+                console.log('📋 Visit type changed to:', currentVisitType);
+            });
+
+            // Form submission
+            $('#frmEmpSearch').on('submit', function (e) {
+                e.preventDefault();
+                var visitType = $('#visitType').val();
+                var empId = $('#empId').val().trim();
+                var examDate = $('#examDate').val();
+
+                if (!visitType) {
+                    showAlert('error', 'Please select a visit type.');
+                    return;
+                }
+
+                if (!empId) {
+                    showAlert('error', 'Please enter an Employee ID.');
+                    return;
+                }
+
+                // Update current visit type
+                currentVisitType = visitType;
+                console.log('🏥 Processing visit:', visitType, 'for employee:', empId);
+
+                searchEmployee(empId, examDate);
+            });
+
+            // Add medicine row with batch tracking
+            $('#btnAddMedRx').on('click', function () {
+                addMedicineRowWithBatch();
+            });
+
+            // Save prescription with stock validation
+            $('#savePrescriptionBtn').on('click', function () {
+                savePrescriptionWithStockValidation();
+            });
+
+            // Pending Approval button click
+            $('#pendingApprovalBtn').on('click', function() {
+                loadPendingApprovals();
+            });
+
+            // ======= PENDING APPROVALS MODAL EVENTS =======
+
+            // Select All functionality
+            $('#pendingApprovalsModal').on('change', '#selectAllCheckbox', function() {
+                const isChecked = $(this).is(':checked');
+                $('.prescription-checkbox').prop('checked', isChecked);
+                updateApproveButtonState();
+            });
+
+            // Individual checkbox change
+            $('#pendingApprovalsModal').on('change', '.prescription-checkbox', function() {
+                updateApproveButtonState();
+
+                // Update "Select All" checkbox state
+                const totalCheckboxes = $('.prescription-checkbox').length;
+                const checkedCheckboxes = $('.prescription-checkbox:checked').length;
+
+                $('#selectAllCheckbox').prop('indeterminate', checkedCheckboxes > 0 && checkedCheckboxes < totalCheckboxes);
+                $('#selectAllCheckbox').prop('checked', checkedCheckboxes === totalCheckboxes);
+            });
+
+            // Select All button
+            $('#pendingApprovalsModal').on('click', '#selectAllBtn', function() {
+                const allChecked = $('.prescription-checkbox:checked').length === $('.prescription-checkbox').length;
+                $('.prescription-checkbox').prop('checked', !allChecked);
+                $('#selectAllCheckbox').prop('checked', !allChecked);
+                updateApproveButtonState();
+            });
+
+            // Individual approve
+            $('#pendingApprovalsModal').on('click', '.approve-btn', function() {
+                const prescriptionId = $(this).data('prescription-id');
+                approvePrescription(prescriptionId);
+            });
+
+            // Individual reject
+            $('#pendingApprovalsModal').on('click', '.reject-btn', function() {
+                currentPrescriptionId = $(this).data('prescription-id');
+                $('#rejectionReason').val('');
+                $('#rejectReasonModal').modal('show');
+            });
+
+            // Approve all selected
+            $('#pendingApprovalsModal').on('click', '#approveAllBtn, #approveAllSelectedBtn', function() {
+                const selectedIds = $('.prescription-checkbox:checked').map(function() {
+                    return parseInt($(this).val());
+                }).get();
+
+                if (selectedIds.length === 0) {
+                    showAlert('warning', 'Please select at least one prescription to approve.');
+                    return;
+                }
+
+                approveMultiplePrescriptions(selectedIds);
+            });
+
+            // Confirm reject
+            $('#confirmRejectBtn').on('click', function() {
+                const reason = $('#rejectionReason').val().trim();
+
+                if (reason.length < 10) {
+                    showAlert('error', 'Please provide a detailed rejection reason (minimum 10 characters).');
+                    return;
+                }
+
+                rejectPrescription(currentPrescriptionId, reason);
+            });
+        });
+
+        function searchEmployee(empId, examDate) {
+            currentEmpId = empId;
+
+            $.ajax({
+                url: '@Url.Action("GetEmployeeDetails", "DoctorDiagnosis")',
+                type: 'GET',
+                data: { empId: empId, examDate: examDate, visitType: currentVisitType },
+                success: function (result) {
+                    $('#empDetailsContainer').html(result);
+                    $('#diagSection').show();
+
+                    // Apply masking to vital signs if needed
+                    if (shouldMaskData) {
+                        $('#bloodPressure, #pulse, #temperature').val('*****').prop('disabled', true);
+                    }
+
+                    loadEmployeeDiagnoses(empId);
+
+                    // Show visit type info
+                    if (currentVisitType === 'First Aid or Emergency') {
+                        showAlert('info', '🚨 First Aid/Emergency visit for ' + empId);
+                    } else {
+                        showAlert('success', '✅ Regular visit for ' + empId);
+                    }
+                },
+                error: function (xhr) {
+                    if (xhr.status === 404) {
+                        showAlert('error', 'Employee not found.');
+                    } else {
+                        showAlert('error', 'Error loading employee details.');
+                    }
+                    $('#empDetailsContainer').empty();
+                    $('#diagSection').hide();
+                }
+            });
+        }
+
+        // ENHANCED: Load prescription data with batch information and stock
+        function loadPrescriptionData() {
+            if (shouldMaskData) {
+                // Don't load prescription data if user can't create prescriptions
+                return;
+            }
+
+            console.log('🔍 Loading prescription data with batch information...');
+
+            $.ajax({
+                url: '@Url.Action("GetPrescriptionData", "DoctorDiagnosis")',
+                type: 'GET',
+                success: function (data) {
+                    if (data.success) {
+                        prescriptionData = data;
+                        populateDiseaseSelect();
+                        console.log('✅ Loaded prescription data:', prescriptionData);
+                        console.log(`   - Diseases: ${prescriptionData.diseases.length}`);
+                        console.log(`   - Medicines with stock: ${prescriptionData.medicines.length}`);
+                    } else {
+                        console.log('❌ Failed to load prescription data:', data.message);
+                        showAlert('warning', 'Failed to load medicine data: ' + (data.message || 'Unknown error'));
+                    }
+                },
+                error: function () {
+                    console.log('❌ Error loading prescription data');
+                    showAlert('error', 'Error loading prescription data.');
+                }
+            });
+        }
+
+        function populateDiseaseSelect() {
+            var diseaseSelect = $('#diseaseSelect');
+            diseaseSelect.empty();
+
+            if (prescriptionData.diseases && prescriptionData.diseases.length > 0) {
+                prescriptionData.diseases.forEach(function (disease) {
+                    diseaseSelect.append(new Option(disease.text, disease.value));
+                });
+            } else {
+                diseaseSelect.append(new Option('No diseases available', ''));
+            }
+        }
+
+        // ENHANCED: Add medicine row with batch tracking and stock information
+        function addMedicineRowWithBatch() {
+            const tbody = $('#tblRxMeds tbody');
+
+            // Remove "no medicine" row if it exists
+            $('#noMedicineRow').remove();
+
+            const idx = tbody.children().length + 1;
+
+            var medicineOptions = '<option value="">-- Select Medicine (Batch) --</option>';
+
+            if (prescriptionData.medicines && prescriptionData.medicines.length > 0) {
+                prescriptionData.medicines.forEach(function (medicine) {
+                    // Create option with data attributes for stock validation
+                    medicineOptions += `<option value="${medicine.medItemId}"
+                                               data-indent-item-id="${medicine.indentItemId}"
+                                               data-available-stock="${medicine.availableStock}"
+                                               data-batch-no="${medicine.batchNo || ''}"
+                                               data-expiry-date="${medicine.expiryDate || ''}"
+                                               data-expiry-days="${medicine.daysToExpiry}"
+                                               data-company-name="${medicine.companyName || ''}"
+                                               class="${medicine.expiryClass || ''}">
+                                            ${medicine.text} (Stock: ${medicine.availableStock})
+                                        </option>`;
+                });
+            } else {
+                medicineOptions += '<option value="" disabled>No medicines with available stock</option>';
+            }
+
+            const tr = $(`
+                <tr class="medicine-row" data-row-index="${idx}">
+                    <td class="text-center fw-bold">${idx}</td>
+                    <td>
+                        <select class="form-control form-control-sm glass medicine-select" name="medicineId" onchange="handleMedicineSelection(this)" required>
+                            ${medicineOptions}
+                        </select>
+                        
+                    </td>
+                    <td class="text-center">
+                        <span class="available-stock fw-bold text-success">-</span>
+                    </td>
+                    <td>
+                        <input class="form-control form-control-sm text-center quantity-input"
+                               name="quantity" type="number" min="1" max="999"
+                               placeholder="0" onchange="validateQuantity(this)" required />
+                        <div class="invalid-feedback small"></div>
+                    </td>
+                    <td>
+                        <input class="form-control form-control-sm" name="dose"
+                               placeholder="e.g. 1-0-1" required />
+                    </td>
+                    <td class="text-center">
+                        <span class="expiry-status small">-</span>
+                    </td>
+                    <td class="text-center">
+                        <button class="btn btn-sm btn-outline-danger" type="button"
+                                onclick="removeMedicineRowEnhanced(this)" title="Remove this medicine">
+                            <i class="bi bi-trash"></i>Del
+                        </button>
+                    </td>
+                </tr>
+            `);
+
+            tbody.append(tr);
+
+            // Focus on the medicine select
+            tr.find('.medicine-select').focus();
+
+            console.log('✅ Medicine row added with batch tracking. Total:', tbody.children().length);
+        }
+
+        // NEW: Handle medicine selection with batch information
+        function handleMedicineSelection(selectElement) {
+            const $select = $(selectElement);
+            const $row = $select.closest('tr');
+            const selectedOption = $select.find('option:selected');
+
+            if (selectedOption.val()) {
+                // Extract data from the selected option
+                const indentItemId = selectedOption.data('indent-item-id');
+                const availableStock = selectedOption.data('available-stock');
+                const batchNo = selectedOption.data('batch-no');
+                const expiryDate = selectedOption.data('expiry-date');
+                const expiryDays = selectedOption.data('expiry-days');
+                const companyName = selectedOption.data('company-name');
+
+                // Update the row with medicine information
+                $row.find('.available-stock').text(availableStock);
+                $row.find('.quantity-input').attr('max', availableStock);
+
+                // Show medicine info
+                const $medicineInfo = $row.find('.medicine-info');
+                $medicineInfo.find('.batch-info').text(`Batch: ${batchNo}`);
+                $medicineInfo.find('.expiry-info').text(`Company: ${companyName}`);
+                $medicineInfo.show();
+
+                // Set expiry status with color coding
+                const $expiryStatus = $row.find('.expiry-status');
+                if (expiryDays < 0) {
+                    $expiryStatus.html('<span class="text-danger">EXPIRED</span>');
+                } else if (expiryDays <= 7) {
+                    $expiryStatus.html(`<span class="text-warning">${expiryDays}d left</span>`);
+                } else if (expiryDays <= 30) {
+                    $expiryStatus.html(`<span class="text-info">${expiryDays}d left</span>`);
+                } else {
+                    $expiryStatus.html(`<span class="text-success">${expiryDays}d left</span>`);
+                }
+
+                // Store batch data in hidden inputs for form submission
+                if ($row.find('input[name="indentItemId"]').length === 0) {
+                    $row.append(`
+                        <input type="hidden" name="indentItemId" value="${indentItemId}" />
+                        <input type="hidden" name="batchNo" value="${batchNo}" />
+                        <input type="hidden" name="expiryDate" value="${expiryDate}" />
+                        <input type="hidden" name="availableStock" value="${availableStock}" />
+                    `);
+                } else {
+                    // Update existing hidden inputs
+                    $row.find('input[name="indentItemId"]').val(indentItemId);
+                    $row.find('input[name="batchNo"]').val(batchNo);
+                    $row.find('input[name="expiryDate"]').val(expiryDate);
+                    $row.find('input[name="availableStock"]').val(availableStock);
+                }
+
+                console.log('📦 Medicine selected:', {
+                    medicine: selectedOption.text(),
+                    batchNo: batchNo,
+                    availableStock: availableStock,
+                    expiryDays: expiryDays
+                });
+            } else {
+                // Reset row if no medicine selected
+                $row.find('.available-stock').text('-');
+                $row.find('.medicine-info').hide();
+                $row.find('.expiry-status').text('-');
+                $row.find('.quantity-input').attr('max', 999);
+                $row.find('input[type="hidden"]').remove();
+            }
+        }
+
+        // NEW: Validate quantity against available stock
+        function validateQuantity(quantityInput) {
+            const $input = $(quantityInput);
+            const $row = $input.closest('tr');
+            const quantity = parseInt($input.val()) || 0;
+            const availableStock = parseInt($row.find('input[name="availableStock"]').val()) || 0;
+            const medicineName = $row.find('.medicine-select option:selected').text();
+
+            const $feedback = $input.siblings('.invalid-feedback');
+
+            // Clear previous validation state
+            $input.removeClass('is-invalid is-valid');
+            $feedback.text('');
+
+            if (quantity > 0) {
+                if (quantity > availableStock) {
+                    // Insufficient stock
+                    $input.addClass('is-invalid');
+                    $feedback.text(`Insufficient stock! Available: ${availableStock}`);
+                    console.log('❌ Insufficient stock validation failed:', {
+                        medicine: medicineName,
+                        requested: quantity,
+                        available: availableStock
+                    });
+                } else {
+                    // Valid quantity
+                    $input.addClass('is-valid');
+                    console.log('✅ Stock validation passed:', {
+                        medicine: medicineName,
+                        requested: quantity,
+                        available: availableStock
+                    });
+                }
+            }
+        }
+
+        function removeMedicineRowEnhanced(button) {
+            const tbody = $('#tblRxMeds tbody');
+            $(button).closest('tr').remove();
+
+            // Update row numbers
+            tbody.find('tr.medicine-row').each(function(index) {
+                $(this).find('td:first').text(index + 1);
+                $(this).attr('data-row-index', index + 1);
+            });
+
+            // Add "no medicine" row if empty
+            if (tbody.children().length === 0) {
+                tbody.append(`
+                    <tr id="noMedicineRow">
+                        <td colspan="7" class="text-center text-muted">
+                            <i class="bi bi-info-circle"></i> No medicines added yet. Click "Add medicine with batch" to start.
+                        </td>
+                    </tr>
+                `);
+            }
+
+            console.log('🗑️ Medicine row removed');
+        }
+
+        // ENHANCED: Save prescription with comprehensive stock validation
+        function savePrescriptionWithStockValidation() {
+            if (shouldMaskData) {
+                showAlert('error', 'You don\'t have permission to save prescriptions.');
+                return;
+            }
+
+            var selectedDiseases = $('#diseaseSelect').val() || [];
+            var medicines = [];
+            var bloodPressure = $('#bloodPressure').val();
+            var pulse = $('#pulse').val();
+            var temperature = $('#temperature').val();
+            var examDate = $('#examDate').val();
+
+            // Validate diseases selection
+            if (selectedDiseases.length === 0) {
+                showAlert('error', 'Please select at least one disease.');
+                $('#diseaseSelect').focus();
+                return;
+            }
+
+            // Collect and validate medicine data
+            let hasValidMedicine = false;
+            let hasValidationErrors = false;
+
+            $('#tblRxMeds tbody tr.medicine-row').each(function () {
+                const $row = $(this);
+                const medicineId = $row.find('[name="medicineId"]').val();
+                const quantity = parseInt($row.find('[name="quantity"]').val()) || 0;
+                const dose = $row.find('[name="dose"]').val();
+                const indentItemId = parseInt($row.find('[name="indentItemId"]').val()) || 0;
+                const batchNo = $row.find('[name="batchNo"]').val();
+                const expiryDate = $row.find('[name="expiryDate"]').val();
+                const availableStock = parseInt($row.find('[name="availableStock"]').val()) || 0;
+
+                if (medicineId && quantity && dose) {
+                    // Validate stock one more time before adding
+                    if (quantity > availableStock) {
+                        hasValidationErrors = true;
+                        $row.find('.quantity-input').addClass('is-invalid');
+                        showAlert('error', `Insufficient stock for ${$row.find('[name="medicineId"] option:selected').text().split(' (Stock:')[0]}. Available: ${availableStock}, Requested: ${quantity}`);
+                        return false; // Break the loop
+                    }
+
+                    medicines.push({
+                        MedItemId: parseInt(medicineId),
+                        Quantity: quantity,
+                        Dose: dose,
+                        MedicineName: $row.find('[name="medicineId"] option:selected').text().split(' (Stock:')[0], // Remove stock info from name
+                        IndentItemId: indentItemId > 0 ? indentItemId : null,
+                        BatchNo: batchNo,
+                        ExpiryDate: expiryDate,
+                        AvailableStock: availableStock
+                    });
+                    hasValidMedicine = true;
+                }
+            });
+
+            // Stop if validation errors
+            if (hasValidationErrors) {
+                return;
+            }
+
+            if (!hasValidMedicine) {
+                showAlert('error', 'Please add at least one complete medicine entry with valid stock.');
+                return;
+            }
+
+            // Show loading state
+            const $saveBtn = $('#savePrescriptionBtn');
+            const originalText = $saveBtn.html();
+            $saveBtn.html('<i class="bi bi-hourglass-split"></i> Validating stock & saving...').prop('disabled', true);
+
+            console.log('💾 Saving prescription with batch tracking:', {
+                visitType: currentVisitType,
+                diseases: selectedDiseases,
+                medicines: medicines
+            });
+
+            $.ajax({
+                url: '@Url.Action("SavePrescription", "DoctorDiagnosis")',
+                type: 'POST',
+                data: {
+                    empId: currentEmpId,
+                    examDate: examDate,
+                    selectedDiseases: selectedDiseases,
+                    medicines: medicines,
+                    bloodPressure: bloodPressure,
+                    pulse: pulse,
+                    temperature: temperature,
+                    visitType: currentVisitType // Include visit type in the request
+                },
+                success: function (response) {
+                    if (response.success) {
+                        showAlert('success', response.message || 'Prescription saved successfully with stock updates!');
+                        $('#prescriptionModal').modal('hide');
+
+                        // Clear the form
+                        $('#diseaseSelect').val([]);
+                        $('#tblRxMeds tbody').html(`
+                            <tr id="noMedicineRow">
+                                <td colspan="7" class="text-center text-muted">
+                                    <i class="bi bi-info-circle"></i> No medicines added yet.
+                                </td>
+                            </tr>
+                        `);
+                        $('#bloodPressure, #pulse, #temperature').val('');
+
+                        // Refresh the diagnoses table
+                        loadEmployeeDiagnoses(currentEmpId);
+
+                        // Reload prescription data to get updated stock
+                        loadPrescriptionData();
+
+                        // If it was an emergency visit, refresh pending approval count
+                        if (currentVisitType === 'First Aid or Emergency') {
+                            updatePendingApprovalCount();
+                        }
+                    } else {
+                        showAlert('error', response.message || 'Error saving prescription.');
+                    }
+                },
+                error: function (xhr, status, error) {
+                    console.error('❌ Error saving prescription:', error);
+                    if (xhr.responseJSON && xhr.responseJSON.message) {
+                        showAlert('error', xhr.responseJSON.message);
+                    } else {
+                        showAlert('error', 'Error saving prescription: ' + error);
+                    }
+                },
+                complete: function() {
+                    // Reset button state
+                    $saveBtn.html(originalText).prop('disabled', false);
+                }
+            });
+        }
+
+        // Keep existing functions (loadEmployeeDiagnoses, viewDiagnosis, populatePrescriptionModal, etc.) unchanged
+        function loadEmployeeDiagnoses(empId) {
+            $.ajax({
+                url: '@Url.Action("GetEmployeeDiagnoses", "DoctorDiagnosis")',
+                type: 'GET',
+                data: { empId: empId },
+                success: function (data) {
+                    var tbody = $('#diagnosesTable tbody');
+                    tbody.empty();
+
+                    if (data && data.length > 0) {
+                        data.forEach(function (diagnosis, index) {
+                            var lastVisitDate = new Date(diagnosis.lastVisitDate);
+                            var formattedDate = lastVisitDate.toLocaleDateString('en-GB', {
+                                day: '2-digit',
+                                month: 'short',
+                                year: 'numeric'
+                            });
+
+                            var row = '<tr>' +
+                                '<td>' + (index + 1) + '</td>' +
+                                '<td>' + diagnosis.diagnosisName + '</td>' +
+                                '<td>' + formattedDate + '</td>' +
+                                '<td>' +
+                                    '<button class="btn btn-sm btn-outline-primary" onclick="viewDiagnosis(' + diagnosis.diagnosisId + ')">View</button>' +
+                                '</td>' +
+                            '</tr>';
+                            tbody.append(row);
+                        });
+                    } else {
+                        tbody.append('<tr><td colspan="4" class="text-center text-muted">No previous diagnoses found</td></tr>');
+                    }
+                },
+                error: function (xhr, status, error) {
+                    console.error('Error loading diagnoses:', error);
+                    var tbody = $('#diagnosesTable tbody');
+                    tbody.empty();
+                    tbody.append('<tr><td colspan="4" class="text-center text-danger">Error loading diagnoses</td></tr>');
+                }
+            });
+        }
+
+        function viewDiagnosis(prescriptionId) {
+            // Show the modal immediately
+            $('#viewPrescriptionModal').modal('show');
+
+            // Show loading state
+            $('#prescriptionLoadingState').show();
+            $('#prescriptionContent').hide();
+            $('#prescriptionErrorState').hide();
+
+            // Load prescription details
+            $.ajax({
+                url: '@Url.Action("GetPrescriptionDetails", "DoctorDiagnosis")',
+                type: 'GET',
+                data: { prescriptionId: prescriptionId },
+                success: function (data) {
+                    if (data.success) {
+                        populatePrescriptionModal(data.prescription);
+                        $('#prescriptionLoadingState').hide();
+                        $('#prescriptionContent').show();
+                    } else {
+                        showPrescriptionError(data.message || 'Failed to load prescription details.');
+                    }
+                },
+                error: function (xhr, status, error) {
+                    console.error('Error loading prescription:', error);
+                    showPrescriptionError('Error loading prescription details: ' + error);
+                }
+            });
+        }
+
+        function populatePrescriptionModal(prescription) {
+            // Employee information
+            $('#viewEmpId').text(prescription.employeeId || 'N/A');
+            $('#viewEmpName').text(prescription.employeeName || 'N/A');
+            $('#viewEmpDept').text(prescription.department || 'N/A');
+            $('#viewEmpPlant').text(prescription.plant || 'N/A');
+
+            // Prescription information - Apply masking
+            $('#viewPrescDate').text(formatDate(prescription.prescriptionDate));
+            $('#viewDoctor').text(prescription.createdBy || 'N/A');
+            $('#viewBP').text(maskValue(prescription.bloodPressure) || 'Not recorded');
+            $('#viewPulse').text(maskValue(prescription.pulse) || 'Not recorded');
+            $('#viewTemperature').text(maskValue(prescription.temperature) || 'Not recorded');
+
+            // Diseases
+            populateDiseases(prescription.diseases);
+
+            // Medicines - with masking
+            populateMedicinesWithMasking(prescription.medicines);
+
+            // Remarks
+            if (prescription.remarks && prescription.remarks.trim()) {
+                $('#viewRemarks').text(prescription.remarks);
+                $('#remarksSection').show();
+            } else {
+                $('#remarksSection').hide();
+            }
+        }
+
+        function populateDiseases(diseases) {
+            const diseaseContainer = $('#viewDiseases');
+
+            if (diseases && diseases.length > 0) {
+                var diseaseList = '';
+                diseases.forEach(function(disease) {
+                    diseaseList += '<span class="badge bg-info me-2 mb-2">' + disease.diseaseName + '</span>';
+                });
+                diseaseContainer.html(diseaseList);
+            } else {
+                diseaseContainer.html('<p class="text-muted small mb-0">No diseases diagnosed.</p>');
+            }
+        }
+
+        function populateMedicinesWithMasking(medicines) {
+            const tbody = $('#viewMedicinesTable tbody');
+            tbody.empty();
+
+            if (medicines && medicines.length > 0) {
+                medicines.forEach(function (medicine, index) {
+                    const row = '<tr>' +
+                        '<td>' + (index + 1) + '</td>' +
+                        '<td>' + maskValue(medicine.medicineName) + '</td>' +
+                        '<td>' + medicine.quantity + '</td>' +
+                        '<td>' + medicine.dose + '</td>' +
+                    '</tr>';
+                    tbody.append(row);
+                });
+            } else {
+                tbody.append('<tr><td colspan="4" class="text-center text-muted">No medicines prescribed.</td></tr>');
+            }
+        }
+
+        function showPrescriptionError(message) {
+            $('#prescriptionLoadingState').hide();
+            $('#prescriptionContent').hide();
+            $('#prescriptionErrorMessage').text(message);
+            $('#prescriptionErrorState').show();
+        }
+
+        function formatDate(dateString) {
+            if (!dateString) return 'N/A';
+
+            const date = new Date(dateString);
+            return date.toLocaleDateString('en-GB', {
+                day: '2-digit',
+                month: 'short',
+                year: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit'
+            });
+        }
+
+        // Simple alert function (you can replace this with your existing implementation)
+        function showAlert(type, message) {
+            const alertClass = type === 'error' ? 'alert-danger' :
+                              type === 'success' ? 'alert-success' :
+                              type === 'info' ? 'alert-info' : 'alert-warning';
+
+            const alert = $(`
+                <div class="alert ${alertClass} alert-dismissible fade show" role="alert">
+                    ${message}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                </div>
+            `);
+
+            $('#alertContainer').html(alert);
+
+            // Auto-hide after 5 seconds
+            setTimeout(() => {
+                alert.alert('close');
+            }, 5000);
+        }
+
+        // ======= APPROVAL FUNCTIONS (unchanged) =======
+
+        function checkUserRoleAndInitialize() {
+            // Check if user is doctor and show pending approval button
+            $.ajax({
+                url: '@Url.Action("GetPendingApprovalCount", "DoctorDiagnosis")',
+                type: 'GET',
+                success: function(response) {
+                    if (response.success) {
+                        // User is doctor, show the button and update count
+                        $('#pendingApprovalContainer').show();
+                        updatePendingCount(response.count);
+
+                        // Auto-refresh pending count every 30 seconds
+                        setInterval(updatePendingApprovalCount, 30000);
+                    }
+                    // If not doctor or error, button remains hidden
+                },
+                error: function() {
+                    // Button remains hidden on error
+                    console.log('Failed to check user role or get pending count');
+                }
+            });
+        }
+
+        function updatePendingApprovalCount() {
+            $.ajax({
+                url: '@Url.Action("GetPendingApprovalCount", "DoctorDiagnosis")',
+                type: 'GET',
+                success: function(response) {
+                    if (response.success) {
+                        updatePendingCount(response.count);
+                    }
+                },
+                error: function() {
+                    console.log('Failed to update pending count');
+                }
+            });
+        }
+
+        function updatePendingCount(count) {
+            const badge = $('#pendingCount');
+            if (count > 0) {
+                badge.text(count).show();
+                $('#pendingApprovalBtn').removeClass('btn-warning').addClass('btn-danger');
+            } else {
+                badge.hide();
+                $('#pendingApprovalBtn').removeClass('btn-danger').addClass('btn-warning');
+            }
+        }
+
+        function loadPendingApprovals() {
+            $.ajax({
+                url: '@Url.Action("PendingApprovals", "DoctorDiagnosis")',
+                type: 'GET',
+                success: function(response) {
+                    if (typeof response === 'string') {
+                        // Response is HTML (partial view)
+                        $('#pendingApprovalsModalBody').html(response);
+
+                        // Update modal badge
+                        const pendingCount = $('.prescription-checkbox').length;
+                        $('#pendingModalBadge').text(pendingCount + ' Pending');
+
+                        // Show/hide footer button based on content
+                        if (pendingCount > 0) {
+                            $('#approveAllSelectedBtn').show();
+                        } else {
+                            $('#approveAllSelectedBtn').hide();
+                        }
+
+                        $('#pendingApprovalsModal').modal('show');
+                    } else if (response.success === false) {
+                        showAlert('error', response.message);
+                    }
+                },
+                error: function() {
+                    showAlert('error', 'Error loading pending approvals.');
+                }
+            });
+        }
+
+        function updateApproveButtonState() {
+            const hasSelected = $('.prescription-checkbox:checked').length > 0;
+            $('#approveAllBtn, #approveAllSelectedBtn').prop('disabled', !hasSelected);
+        }
+
+        function approvePrescription(prescriptionId) {
+            if (!prescriptionId) return;
+
+            $.ajax({
+                url: '@Url.Action("ApprovePrescription", "DoctorDiagnosis")',
+                type: 'POST',
+                data: { prescriptionId: prescriptionId },
+                success: function(response) {
+                    if (response.success) {
+                        showAlert('success', response.message);
+                        // Remove the row from the table
+                        $(`tr[data-prescription-id="${prescriptionId}"]`).fadeOut(function() {
+                            $(this).remove();
+                            updateModalAfterAction();
+                        });
+                    } else {
+                        showAlert('error', response.message);
+                    }
+                },
+                error: function() {
+                    showAlert('error', 'Error approving prescription.');
+                }
+            });
+        }
+
+        function rejectPrescription(prescriptionId, reason) {
+            if (!prescriptionId || !reason) return;
+
+            $.ajax({
+                url: '@Url.Action("RejectPrescription", "DoctorDiagnosis")',
+                type: 'POST',
+                data: {
+                    prescriptionId: prescriptionId,
+                    rejectionReason: reason
+                },
+                success: function(response) {
+                    if (response.success) {
+                        showAlert('success', response.message);
+                        $('#rejectReasonModal').modal('hide');
+                        // Remove the row from the table
+                        $(`tr[data-prescription-id="${prescriptionId}"]`).fadeOut(function() {
+                            $(this).remove();
+                            updateModalAfterAction();
+                        });
+                    } else {
+                        showAlert('error', response.message);
+                    }
+                },
+                error: function() {
+                    showAlert('error', 'Error rejecting prescription.');
+                }
+            });
+        }
+
+        function approveMultiplePrescriptions(prescriptionIds) {
+            if (!prescriptionIds || prescriptionIds.length === 0) return;
+
+            $.ajax({
+                url: '@Url.Action("ApproveAllPrescriptions", "DoctorDiagnosis")',
+                type: 'POST',
+                data: { prescriptionIds: prescriptionIds },
+                success: function(response) {
+                    if (response.success) {
+                        showAlert('success', response.message);
+                        // Remove approved rows
+                        prescriptionIds.forEach(function(id) {
+                            $(`tr[data-prescription-id="${id}"]`).fadeOut(function() {
+                                $(this).remove();
+                                updateModalAfterAction();
+                            });
+                        });
+                    } else {
+                        showAlert('error', response.message);
+                    }
+                },
+                error: function() {
+                    showAlert('error', 'Error approving prescriptions.');
+                }
+            });
+        }
+
+        function updateModalAfterAction() {
+            // Update badge count
+            const remainingCount = $('tbody tr[data-prescription-id]').length;
+            $('#pendingModalBadge').text(remainingCount + ' Pending');
+
+            // If no more pending, show empty state
+            if (remainingCount === 0) {
+                $('#pendingApprovalsModalBody').html(`
+                    <div class="text-center py-5">
+                        <i class="bi bi-check-circle text-success" style="font-size: 3rem;"></i>
+                        <h5 class="mt-3">All Prescriptions Processed</h5>
+                        <p class="text-muted">No more pending approvals.</p>
+                    </div>
+                `);
+                $('#approveAllSelectedBtn').hide();
+            }
+
+            // Reset checkboxes
+            $('#selectAllCheckbox').prop('checked', false).prop('indeterminate', false);
+            updateApproveButtonState();
+
+            // Update main page pending count
+            updatePendingApprovalCount();
+        }
+    </script>
+}
+
+<style>
+    .modal-content {
+        margin-top: 120px;
+    }
+
+    .modal-backdrop {
+        z-index: -1 !important;
+    }
+
+    .glass {
+        --glass-bg: rgba(255, 255, 255, 0.30) !important;
+    }
+
+    /* Enhanced styles for batch tracking */
+    .medicine-info {
+        font-size: 0.8rem;
+        line-height: 1.2;
+    }
+
+    .expiry-status {
+        font-weight: 600;
+    }
+
+    .available-stock {
+        font-size: 1.1rem;
+    }
+
+    .quantity-input.is-invalid {
+        border-color: #dc3545;
+        background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' fill='none' stroke='%23dc3545' viewBox='0 0 12 12'%3e%3ccircle cx='6' cy='6' r='4.5'/%3e%3cpath d='m5.8 3.6.4.6m0 0 .4-.6m-.4.6v2.4m0 0 .4.6m-.4-.6-.4.6'/%3e%3c/svg%3e");
+        background-repeat: no-repeat;
+        background-position: right calc(0.375em + 0.1875rem) center;
+        background-size: calc(0.75em + 0.375rem) calc(0.75em + 0.375rem);
+    }
+
+    .quantity-input.is-valid {
+        border-color: #198754;
+        background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' width='8' height='8' viewBox='0 0 8 8'%3e%3cpath fill='%23198754' d='m2.3 6.73.94-.94 1.93 1.93 3.94-3.94.94.94-4.88 4.87z'/%3e%3c/svg%3e");
+        background-repeat: no-repeat;
+        background-position: right calc(0.375em + 0.1875rem) center;
+        background-size: calc(0.75em + 0.375rem) calc(0.75em + 0.375rem);
+    }
+
+    /* Medicine dropdown enhancements */
+    .medicine-select option {
+        padding: 8px;
+        font-size: 0.9rem;
+    }
+
+        .medicine-select option.text-danger {
+            background-color: #f8d7da !important;
+            color: #721c24 !important;
+        }
+
+        .medicine-select option.text-warning {
+            background-color: #fff3cd !important;
+            color: #856404 !important;
+        }
+
+        .medicine-select option.text-info {
+            background-color: #d1ecf1 !important;
+            color: #0c5460 !important;
+        }
+
+        .medicine-select option.text-success {
+            background-color: #d4edda !important;
+            color: #155724 !important;
+        }
+
+    /* Pending Approval Button Styles */
+    #pendingApprovalBtn {
+        transition: all 0.3s ease;
+        font-weight: 500;
+    }
+
+        #pendingApprovalBtn:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+        }
+
+        #pendingApprovalBtn.btn-danger {
+            animation: pulse 2s infinite;
+        }
+
+    @@keyframes pulse {
+        0%
+
+    {
+        box-shadow: 0 0 0 0 rgba(220, 53, 69, 0.7);
+    }
+
+    70% {
+        box-shadow: 0 0 0 10px rgba(220, 53, 69, 0);
+    }
+
+    100% {
+        box-shadow: 0 0 0 0 rgba(220, 53, 69, 0);
+    }
+
+    }
+
+    #pendingCount {
+        font-size: 0.7rem;
+        min-width: 18px;
+        height: 18px;
+        line-height: 18px;
+    }
+
+    /* Pending Approvals Modal Styles */
+    .table th {
+        background-color: rgba(13, 110, 253, 0.1);
+        border: none;
+        font-weight: 600;
+        font-size: 0.9rem;
+    }
+
+    .table td {
+        vertical-align: middle;
+        border-color: rgba(0,0,0,0.1);
+    }
+
+    .badge {
+        font-size: 0.75rem;
+    }
+
+    .btn-group-vertical .btn {
+        font-size: 0.8rem;
+        padding: 0.25rem 0.5rem;
+    }
+
+    .table-responsive {
+        background: white;
+        border-radius: 0.375rem;
+        box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+    }
+
+    .prescription-checkbox, #selectAllCheckbox {
+        transform: scale(1.1);
+    }
+
+    /* Masking indicator styles */
+    input[disabled].form-control {
+        background-color: #f8f9fa;
+        cursor: not-allowed;
+    }
+
+    .btn[disabled] {
+        opacity: 0.65;
+        cursor: not-allowed;
+    }
+
+    /* Stock validation alerts */
+    #stockValidationContainer .alert {
+        margin-bottom: 0.5rem;
+        font-size: 0.9rem;
+    }
+</style>

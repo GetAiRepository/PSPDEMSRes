@@ -1,0 +1,94 @@
+﻿@model List<EMS.WebApp.Data.AuditTrailViewModel>
+@{
+    ViewData["Title"] = "Entity History";
+    var tableName = ViewBag.TableName as string;
+    var primaryKey = ViewBag.PrimaryKey as string;
+}
+
+<div class="container-fluid">
+    <div class="row mb-3">
+        <div class="col-md-8">
+            <h2><i class="fas fa-history"></i> Entity History</h2>
+            <p class="text-muted">
+                <strong>Table:</strong> @tableName &nbsp;|&nbsp;
+                <strong>Primary Key:</strong> @primaryKey
+            </p>
+        </div>
+        <div class="col-md-4 text-right">
+            <a href="@Url.Action("Index")" class="btn btn-primary">
+                <i class="fas fa-arrow-left"></i> Back to Audit Trail
+            </a>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="card-header">
+            <h5 class="card-title mb-0">History Timeline (@Model.Count records)</h5>
+        </div>
+        <div class="card-body">
+            @if (Model.Any())
+            {
+                <div class="timeline">
+                    @foreach (var audit in Model.OrderByDescending(a => a.Timestamp))
+                    {
+                        <div class="timeline-item">
+                            <div class="timeline-marker">
+                                @{
+                                    var (iconClass, colorClass) = audit.Operation switch
+                                    {
+                                        "CREATE" => ("fas fa-plus", "bg-success"),
+                                        "UPDATE" => ("fas fa-edit", "bg-warning"),
+                                        "DELETE" => ("fas fa-trash", "bg-danger"),
+                                        _ => ("fas fa-question", "bg-secondary")
+                                    };
+                                }
+                                <div class="timeline-icon @colorClass">
+                                    <i class="@iconClass"></i>
+                                </div>
+                            </div>
+                            <div class="timeline-content">
+                                <div class="timeline-header">
+                                    <h6>
+                                        <span class="badge badge-primary">@audit.Operation</span>
+                                        by @audit.UserId
+                                        <small class="text-muted float-right">
+                                            @audit.Timestamp.ToString("yyyy-MM-dd HH:mm:ss")
+                                        </small>
+                                    </h6>
+                                </div>
+                                <div class="timeline-body">
+                                    @if (audit.Operation == "UPDATE" && audit.AffectedColumnsList?.Any() == true)
+                                    {
+                                        <p><strong>Changed Fields:</strong> @string.Join(", ", audit.AffectedColumnsList)</p>
+                                    }
+
+                                    @if (!string.IsNullOrEmpty(audit.Action))
+                                    {
+                                        <p><strong>Action:</strong> @audit.Action</p>
+                                    }
+
+                                    @if (!string.IsNullOrEmpty(audit.IpAddress))
+                                    {
+                                        <p><strong>IP Address:</strong> @audit.IpAddress</p>
+                                    }
+
+                                    <button class="btn btn-sm btn-outline-primary"
+                                            onclick="viewAuditDetails(@audit.AuditId)">
+                                        <i class="fas fa-eye"></i> View Details
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    }
+                </div>
+            }
+            else
+            {
+                <div class="text-center py-4">
+                    <i class="fas fa-history fa-3x text-muted mb-3"></i>
+                    <p class="text-muted">No history records found for this entity.</p>
+                </div>
+            }
+        </div>
+    </div>
+</div>

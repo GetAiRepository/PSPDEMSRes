@@ -1,0 +1,140 @@
+﻿@{
+    ViewData["Title"] = "Reference Hospital Master";
+}
+<div class="d-flex justify-content-end mb-3">
+    <button id="btnCreate" class="btn btn-primary">+ Add Hospital</button>
+</div>
+<div class="table-responsive">
+    <table id="tblReferenceHospital" class="table table-striped table-glass glass-table">
+    <thead>
+        <tr>
+            @* <th class="sticky-col-1">Sl.No</th> *@
+            @* <th class="sticky-col-2">Hospital Name</th> *@
+            <th>Sl.No</th>
+            <th>Hospital Name</th>
+            <th>Hospital Code</th>
+            <th>Speciality</th>
+            <th>Address</th>
+            <th>Description</th>
+            <th>Tax Category</th>
+            <th>Vendor Name</th>
+            <th>Vendor Code</th>     
+            <th>Contact Person Name</th>
+            <th>Contact Person EmailId</th>
+            <th>Mobile Number 1</th>
+            <th>Mobile Number 2</th>
+            <th>Phone Number 1</th>
+            <th>Phone Number 2</th>
+                @* style="width:200px !important; background-color:#5A96C7 !important; opacity: 1 !important;" *@
+                <th class="sticky-last px-4" style="width:150px !important; background-color:#5A96C7 !important;">Actions</th>
+        </tr>
+    </thead>
+    <tbody></tbody>
+</table>
+</div>
+<!-- Modal -->
+<div class="modal fade"  id="modalReferenceHospital" tabindex="-1">
+    <div class="modal-dialog modal-xl modal-dialog-centered">
+        <div class="modal-content glass">
+            <div class="modal-header">
+                <h5 class="modal-title"></h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body" id="modalBody"></div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+                $(function () {
+          const modalEl = $('#modalReferenceHospital');
+          modalEl.appendTo('body');
+          modalEl.modal({ backdrop: 'static', keyboard: false, show: false });
+
+          const tbl = $('#tblReferenceHospital').DataTable({
+            ajax: { url: '@Url.Action("LoadData")', dataSrc: 'data' },
+            columns: [
+              { data: 'hosp_id' },
+              { data: 'hosp_name' },
+              { data: 'hosp_code' },
+              { data: 'speciality' },
+              { data: 'address' },
+              { data: 'description' },
+              { data: 'tax_category' },
+              { data: 'vendor_name' },
+              { data: 'vendor_code' },
+              { data: 'contact_person_name' },
+              { data: 'contact_person_email_id' },
+              { data: 'mobile_number_1' },
+              { data: 'mobile_number_2' },
+              { data: 'phone_number_1' },
+              { data: 'phone_number_2' },
+              {
+                data: 'hosp_id',
+                className: 'sticky-last px-4',
+                render: id => `
+                  <button class="btn btn-sm btn-info view me-1" data-id="${id}">View</button>
+                  <button class="btn btn-sm btn-secondary edit me-1" data-id="${id}">Edit</button>
+                  <button class="btn btn-sm btn-danger delete" data-id="${id}">Del</button>`
+              }
+            ]
+          });
+
+          $('#btnCreate').click(() => {
+            $.get('@Url.Action("Create")').done(html => {
+              modalEl.find('.modal-title').text('Add Reference Hospital');
+              $('#modalBody').html(html);
+              modalEl.modal('show');
+            });
+          });
+
+          $('#tblReferenceHospital').on('click', '.edit', function () {
+            const id = $(this).data('id');
+            $.get(`@Url.Action("Edit")/${id}`).done(html => {
+              modalEl.find('.modal-title').text('Edit Reference Hospital');
+              $('#modalBody').html(html);
+              modalEl.modal('show');
+            });
+          });
+
+          $('#tblReferenceHospital').on('click', '.view', function (e) {
+            if ($(e.target).is('button')) {
+              const id = $(this).data('id');
+              $.get(`@Url.Action("Details")/${id}`).done(html => {
+                modalEl.find('.modal-title').text('View Reference Hospital');
+                $('#modalBody').html(html);
+                modalEl.modal('show');
+              });
+            }
+          });
+
+          modalEl.on('submit', 'form', function (e) {
+            e.preventDefault();
+            const form = $(this);
+            $.post(form.attr('action'), form.serialize()).done(res => {
+              if (res.success) {
+                modalEl.modal('hide');
+                tbl.ajax.reload(null, false);
+                const isCreate = form.attr('action').endsWith('Create');
+                showAlert('success', isCreate ? 'New Reference Hospital record created successfully.' : 'Reference Hospital record updated successfully.');
+              } else {
+                $('#modalBody').html(res);
+              }
+            });
+          });
+
+          $('#tblReferenceHospital').on('click', '.delete', function () {
+            if (!confirm('Delete this?')) return;
+            const id = $(this).data('id');
+            $.post('@Url.Action("Delete")', { id }).done(() => {
+              tbl.ajax.reload(null, false);
+              showAlert('warning', 'Reference Hospital record deleted.');
+            });
+          });
+        });
+
+
+
+    </script>
+}

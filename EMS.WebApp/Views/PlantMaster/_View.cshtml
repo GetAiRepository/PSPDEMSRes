@@ -1,0 +1,27 @@
+﻿@model EMS.WebApp.Data.org_plant
+
+
+
+<div class="row mb-3">
+    <div class="col-md-6">
+        <label class="form-label">Code</label>
+        <input class="form-control rounded-2" value="@Model.plant_code" readonly />
+    </div>
+
+    <div class="col-md-6">
+        <label class="form-label">Name</label>
+        <input class="form-control rounded-2" value="@Model.plant_name" readonly />
+    </div>
+
+    <div class="row mb-3">
+    <div class="col-md-6">
+        <label class="form-label">Description</label>
+            <textarea class="form-control rounded-2" rows="3" readonly>@Model.Description</textarea>
+    </div>
+    </div>
+</div>
+
+
+<div class="text-end">
+    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+</div>

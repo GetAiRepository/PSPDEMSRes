@@ -1,0 +1,19 @@
+﻿@model EMS.WebApp.Data.MedBase
+
+<div class="row mb-2">
+    <div class="col-md-12">
+        <label class="form-label">ID</label>
+        <input class="form-control rounded-2" value="@Model.BaseId" readonly />
+    </div>
+    <div class="col-md-12">
+        <label class="form-label">Name</label>
+        <input class="form-control rounded-2" value="@Model.BaseName" readonly />
+    </div>
+</div>
+<div class="mb-2">
+    <label class="form-label">Description</label>
+    <textarea class="form-control rounded-2 w-100" rows="2" readonly>@Model.BaseDesc</textarea>
+</div>
+<div class="text-end">
+    <button class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+</div>

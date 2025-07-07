@@ -1,0 +1,86 @@
+﻿@model EMS.WebApp.Data.DoctorDiagnosisViewModel
+
+<!-- Employee Details + Health profile -->
+<div class="row gy-4 mb-4" id="empDetailsSection">
+    <div class="col-lg-6">
+        <div class="glass p-3 h-100">
+            <h6 class="mb-3">Employee Details</h6>
+            <div class="row g-2 small">
+                <div class="col-6">
+                    <label class="form-label text-muted mb-0">Employee ID</label>
+                    <div class="fw-medium">@Model.Employee?.emp_id</div>
+                </div>
+                <div class="col-6">
+                    <label class="form-label text-muted mb-0">Name</label>
+                    <div class="fw-medium">@Model.Employee?.emp_name</div>
+                </div>
+                <div class="col-6">
+                    <label class="form-label text-muted mb-0">Sex</label>
+                    <div class="fw-medium">@Model.Employee?.emp_Gender</div>
+                </div>
+                <div class="col-6">
+                    <label class="form-label text-muted mb-0">DOB</label>
+                    <div class="fw-medium">@Model.Employee?.emp_DOB?.ToString("dd-MMM-yyyy")</div>
+                </div>
+                <div class="col-6">
+                    <label class="form-label text-muted mb-0">Blood Group</label>
+                    <div class="fw-medium">@(Model.Employee?.emp_blood_Group ?? "Not specified")</div>
+                </div>
+                <div class="col-6">
+                    <label class="form-label text-muted mb-0">Grade</label>
+                    <div class="fw-medium">@Model.Employee?.emp_Grade</div>
+                </div>
+                <div class="col-6">
+                    <label class="form-label text-muted mb-0">Department</label>
+                    <div class="fw-medium">@Model.Employee?.org_department?.dept_name</div>
+                </div>
+                <div class="col-6">
+                    <label class="form-label text-muted mb-0">Plant</label>
+                    <div class="fw-medium">@Model.Employee?.org_plant?.plant_name</div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-lg-6">
+        <div class="glass p-3 h-100">
+            <h6 class="mb-3">Health Profile</h6>
+            <div class="row g-2 small">
+                @if (Model.MedConditions?.Any() == true)
+                {
+                    @foreach (var condition in Model.MedConditions)
+                    {
+                        var isChecked = Model.SelectedConditionIds?.Contains(condition.cond_uid) == true;
+                        <div class="col-6 col-md-4">
+                            <div class="form-check">
+                                <input class="form-check-input"
+                                       type="checkbox"
+                                       id="healthCondition_@condition.cond_uid"
+                                       @(isChecked ? "checked" : "")
+                                       disabled />
+                                <label class="form-check-label small" for="healthCondition_@condition.cond_uid">
+                                    @condition.cond_code
+                                </label>
+                            </div>
+                        </div>
+                    }
+                }
+                else
+                {
+                    <div class="col-12">
+                        <p class="text-muted small mb-0">No health conditions recorded.</p>
+                    </div>
+                }
+            </div>
+
+            @if (Model.SelectedConditionIds?.Any() != true)
+            {
+                <div class="mt-3">
+                    <p class="text-muted small mb-0">
+                        <i class="bi bi-info-circle me-1"></i>
+                        No specific health conditions are currently flagged for this employee.
+                    </p>
+                </div>
+            }
+        </div>
+    </div>
+</div>

@@ -1,0 +1,19 @@
+﻿@model EMS.WebApp.Data.MedDiagnosis
+
+<div class="row mb-3">
+    
+    <div class="col-md-12">
+        <label class="form-label">Diagnosis Name</label>
+        <input class="form-control rounded-2" value="@Model.diag_name" readonly />
+    </div>
+    <div class="col-md-12">
+        <label class="form-label">Description</label>
+        <textarea class="form-control rounded-2" rows="3" readonly>@Model.diag_desc </textarea>
+    </div>
+   
+</div>
+
+  
+<div>
+    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+</div>

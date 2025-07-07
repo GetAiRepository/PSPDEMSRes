@@ -1,0 +1,438 @@
+﻿@model EMS.WebApp.Data.HealthProfileViewModel
+
+@{
+    ViewData["Title"] = "Employee Health Profile";
+}
+<div id="alertContainer"></div>
+
+
+<div class="row align-items-end mb-3">
+    <div class="col-md-4">
+        <label for="empNoInput" class="form-label">Emp No.</label>
+        <input type="number" class="form-control" id="empNoInput" autocomplete="off" />
+    </div>
+
+    <div class="col-md-4">
+        <label asp-for="ExamDate" class="form-label">Test Date</label>
+        <select asp-for="ExamDate" class="form-select" id="ExamDate">
+            <option value="">-- Select --</option>
+        </select>
+    </div>
+
+    <div class="col-auto">
+        <button class="btn btn-primary" id="loadBtn" style="margin-top: 32px;">Go</button>
+    </div>
+</div>
+
+<div id="healthFormContainer">
+    <!-- Partial view will be injected here -->
+</div>
+
+@* @section Scripts { *@
+@*     <script src="https://ajax.aspnetcdn.com/ajax/jquery/jquery-3.6.0.min.js"></script> *@
+@*     <link rel="stylesheet" href="https://code.jquery.com/ui/1.13.2/themes/base/jquery-ui.css"> *@
+@*     <script src="https://code.jquery.com/ui/1.13.2/jquery-ui.min.js"></script> *@
+
+@*     <script> *@
+@*         $(document).ready(function () { *@
+
+@*             // Load data button *@
+@*             $('#loadBtn').on('click', function () { *@
+@*                 var empNo = $('#empNoInput').val(); *@
+@*                 var examDate = $('#ExamDate').val(); *@
+
+@*                 if (!empNo || empNo <= 0) { *@
+@*                     alert("Please enter a valid employee number."); *@
+@*                     return; *@
+@*                 } *@
+
+@*                 loadEmployeeData(empNo, examDate); *@
+@*             }); *@
+
+@*             // Function to load employee data *@
+@*             function loadEmployeeData(empNo, examDate) { *@
+@*                 var url = '@Url.Action("GetEmployeeHealthForm", "EmployeeHealthProfile")'; *@
+@*                 var data = { empNo: empNo, examDate: examDate }; *@
+
+@*                 $.ajax({ *@
+@*                     url: url, *@
+@*                     type: 'GET', *@
+@*                     data: data, *@
+@*                     success: function (result) { *@
+@*                         $('#healthFormContainer').html(result); *@
+
+@*                         var empNoVal = $('#EmpNo').val(); *@
+@*                         var examDateVal = $('#ExamDate').val(); *@
+
+@*                         $('#displayEmpNo').text(empNoVal); *@
+
+@*                         // Display appropriate date text *@
+@*                         if (examDateVal) { *@
+@*                             $('#displayExamDate').text(new Date(examDateVal).toLocaleDateString()); *@
+@*                         } else { *@
+@*                             $('#displayExamDate').text('New Entry - ' + new Date().toLocaleDateString()); *@
+@*                         } *@
+
+@*                         $('#basicInfo').show(); *@
+
+@*                         // Load available exam dates for this employee, pass examDate here to preserve selection *@
+@*                         loadExamDatesForEmployee(empNo, examDate); *@
+@*                     }, *@
+@*                     error: function (xhr) { *@
+@*                         if (xhr.status === 404) { *@
+@*                             alert(xhr.responseText); *@
+@*                         } else { *@
+@*                             $('#healthFormContainer').html('<div class="alert alert-danger">Error loading form. Please try again.</div>'); *@
+@*                         } *@
+@*                     } *@
+@*                 }); *@
+@*             } *@
+
+@*             // Function to load exam dates for specific employee *@
+@*             function loadExamDatesForEmployee(empNo, examDate) { *@
+@*                 $.ajax({ *@
+@*                     url: '@Url.Action("GetAvailableExamDates", "EmployeeHealthProfile")', *@
+@*                     type: 'GET', *@
+@*                     data: { empNo: empNo }, *@
+@*                     success: function (dates) { *@
+@*                         var examDateSelect = $('#ExamDate'); *@
+@*                         examDateSelect.empty(); *@
+@*                         examDateSelect.append('<option value="">-- Select --</option>'); *@
+
+@*                         if (dates && dates.length > 0) { *@
+@*                             dates.forEach(function(date) { *@
+@*                                 var formattedDate = new Date(date).toLocaleDateString(); *@
+@*                                 examDateSelect.append('<option value="' + date + '">' + formattedDate + '</option>'); *@
+@*                             }); *@
+@*                         } *@
+
+@*                         // Restore previously selected date if provided *@
+@*                         if (examDate) { *@
+@*                             examDateSelect.val(examDate); *@
+@*                         } else { *@
+@*                             examDateSelect.val(''); *@
+@*                         } *@
+@*                     }, *@
+@*                     error: function() { *@
+@*                         console.log('Error loading exam dates for employee'); *@
+@*                     } *@
+@*                 }); *@
+@*             } *@
+
+@*             $(document).on('click', '#saveBtn', function (e) { *@
+@*                 e.preventDefault(); *@
+
+@*                 var form = $('#healthForm'); *@
+@*                 if (form.length === 0) { *@
+@*                     alert('Form not found'); *@
+@*                     return; *@
+@*                 } *@
+
+@*                 var formData = form.serializeArray(); *@
+
+@*                 // Handle Work Area checkboxes - manually add selected work areas *@
+@*                 $('input[name="SelectedWorkAreaIds"]:checked').each(function () { *@
+@*                     formData.push({ name: "SelectedWorkAreaIds", value: $(this).val() }); *@
+@*                 }); *@
+
+@*                 // Handle Medical Condition checkboxes - manually add selected conditions *@
+@*                 $('input[name="SelectedConditionIds"]:checked').each(function () { *@
+@*                     formData.push({ name: "SelectedConditionIds", value: $(this).val() }); *@
+@*                 }); *@
+
+@*                 var actionUrl = '@Url.Action("SaveHealthForm", "EmployeeHealthProfile")'; *@
+
+@*                 $('#saveBtn').prop('disabled', true).text('Saving...'); *@
+
+@*                 $.ajax({ *@
+@*                     url: actionUrl, *@
+@*                     type: 'POST', *@
+@*                     data: $.param(formData), *@
+@*                     success: function (response) { *@
+@*                         $('#saveBtn').prop('disabled', false).text('Save'); *@
+
+@*                         if (response.success) { *@
+@*                             alert(response.message); *@
+@*                             $('#loadBtn').click(); *@
+@*                         } else { *@
+@*                             alert('Save failed: ' + (response.message || 'Please check the form data.')); *@
+@*                         } *@
+@*                     }, *@
+@*                     error: function (xhr, status, error) { *@
+@*                         $('#saveBtn').prop('disabled', false).text('Save'); *@
+
+@*                         if (xhr.status === 400) { *@
+@*                             $('#healthFormContainer').html(xhr.responseText); *@
+@*                             alert('Please correct the validation errors and try again.'); *@
+@*                         } else if (xhr.status === 405) { *@
+@*                             alert('Method not allowed. Please check the server configuration.'); *@
+@*                         } else { *@
+@*                             alert('An error occurred while saving. Please try again.'); *@
+@*                         } *@
+@*                     } *@
+@*                 }); *@
+@*             }); *@
+
+@*             // Employee number autocomplete *@
+@*             $("#empNoInput").autocomplete({ *@
+@*                 source: function (request, response) { *@
+@*                     $.ajax({ *@
+@*                         url: '@Url.Action("SearchEmployeeNos", "EmployeeHealthProfile")', *@
+@*                         data: { term: request.term }, *@
+@*                         success: function (data) { *@
+@*                             response(data); *@
+@*                         } *@
+@*                     }); *@
+@*                 }, *@
+@*                 minLength: 1, *@
+@*                 select: function(event, ui) { *@
+@*                     // When employee is selected, load their exam dates *@
+@*                     setTimeout(function() { *@
+@*                         loadExamDatesForEmployee(ui.item.value); *@
+@*                     }, 100); *@
+@*                 } *@
+@*             }); *@
+
+@*             // Handle form submission *@
+@*             $(document).on('submit', '#healthForm', function (e) { *@
+@*                 e.preventDefault(); *@
+@*                 $('#saveBtn').click(); *@
+@*             }); *@
+
+@*             // Cancel button *@
+@*             $(document).on('click', '#cancelBtn', function () { *@
+@*                 $('#healthFormContainer').empty(); *@
+@*                 $('#basicInfo').hide(); *@
+@*                 $('#ExamDate').empty().append('<option value="">-- New Entry (Current Date) --</option>'); *@
+@*             }); *@
+
+@*             // Load exam dates when employee number changes *@
+@*             $('#empNoInput').on('blur', function() { *@
+@*                 var empNo = $(this).val(); *@
+@*                 if (empNo && empNo > 0) { *@
+@*                     loadExamDatesForEmployee(empNo); *@
+@*                 } *@
+@*             }); *@
+@*         }); *@
+
+@*         // Global function for cancel (called from partial view) *@
+@*         function cancelForm() { *@
+@*             $('#healthFormContainer').empty(); *@
+@*             $('#basicInfo').hide(); *@
+@*             $('#ExamDate').empty().append('<option value="">-- New Entry (Current Date) --</option>'); *@
+@*         } *@
+@*     </script> *@
+@* } *@
+
+
+@section Scripts {
+    @* <script src="https://ajax.aspnetcdn.com/ajax/jquery/jquery-3.6.0.min.js"></script>
+    <link rel="stylesheet" href="https://code.jquery.com/ui/1.13.2/themes/base/jquery-ui.css">
+    <script src="https://code.jquery.com/ui/1.13.2/jquery-ui.min.js"></script> *@
+    
+
+
+    <script src="~/js/jquery-3.6.0.min.js"></script>
+    <link href="~/lib/datatables/css/datatables.min.css" rel="stylesheet" />
+    <script src="~/js/jquery-ui-1.13.2.min.js"></script>
+    <script>
+        $(document).ready(function () {
+
+            $('#loadBtn').on('click', function () {
+                var empNo = $('#empNoInput').val();
+                var examDate = $('#ExamDate').val();
+
+                if (!empNo || empNo <= 0) {
+                    showAlert('error', 'Please enter a valid employee number.');
+                    return;
+                }
+
+                loadEmployeeData(empNo, examDate);
+            });
+
+            function loadEmployeeData(empNo, examDate) {
+                $.ajax({
+                    url: '@Url.Action("GetEmployeeHealthForm", "EmployeeHealthProfile")',
+                    type: 'GET',
+                    data: { empNo: empNo, examDate: examDate },
+                    success: function (result) {
+                        $('#healthFormContainer').html(result);
+
+                        var empNoVal = $('#EmpNo').val();
+                        var examDateVal = $('#ExamDate').val();
+
+                        $('#displayEmpNo').text(empNoVal);
+                        $('#displayExamDate').text(
+                            examDateVal
+                                ? new Date(examDateVal).toLocaleDateString()
+                                : 'New Entry - ' + new Date().toLocaleDateString()
+                        );
+
+                        $('#basicInfo').show();
+                        loadExamDatesForEmployee(empNo, examDate);
+                    },
+                    error: function (xhr) {
+                        if (xhr.status === 404) {
+                            showAlert('error', xhr.responseText);
+                        } else {
+                            $('#healthFormContainer').html('<div class="alert alert-danger">Error loading form. Please try again.</div>');
+                            showAlert('error', 'Error loading form. Please try again.');
+                        }
+                    }
+                });
+            }
+
+            function loadExamDatesForEmployee(empNo, examDate) {
+                $.ajax({
+                    url: '@Url.Action("GetAvailableExamDates", "EmployeeHealthProfile")',
+                    type: 'GET',
+                    data: { empNo: empNo },
+                    success: function (dates) {
+                        var examDateSelect = $('#ExamDate');
+                        examDateSelect.empty();
+                        examDateSelect.append('<option value="">-- Select --</option>');
+
+                        if (dates && dates.length > 0) {
+                            dates.forEach(function (date) {
+                                var formattedDate = new Date(date).toLocaleDateString();
+                                examDateSelect.append('<option value="' + date + '">' + formattedDate + '</option>');
+                            });
+                        }
+
+                        if (examDate) {
+                            examDateSelect.val(examDate);
+                        }
+                    },
+                    error: function () {
+                        showAlert('error', 'Error loading exam dates for employee.');
+                    }
+                });
+            }
+
+            $(document).on('click', '#saveBtn', function (e) {
+                e.preventDefault();
+
+                var form = $('#healthForm');
+                if (form.length === 0) {
+                    showAlert('error', 'Form not found.');
+                    return;
+                }
+
+                var formData = form.serializeArray();
+                $('input[name="SelectedWorkAreaIds"]:checked').each(function () {
+                    formData.push({ name: "SelectedWorkAreaIds", value: $(this).val() });
+                });
+                $('input[name="SelectedConditionIds"]:checked').each(function () {
+                    formData.push({ name: "SelectedConditionIds", value: $(this).val() });
+                });
+
+                var actionUrl = '@Url.Action("SaveHealthForm", "EmployeeHealthProfile")';
+
+                $('#saveBtn').prop('disabled', true).text('Saving...');
+
+                $.ajax({
+                    url: actionUrl,
+                    type: 'POST',
+                    data: $.param(formData),
+                    success: function (response) {
+                        $('#saveBtn').prop('disabled', false).text('Save');
+
+                        if (response.success) {
+                            const isCreate = form.attr('action')?.endsWith('Create');
+                            showAlert('success', isCreate ? 'New Employee record created successfully.' : 'Employee record updated successfully.');
+                            $('#loadBtn').click();
+                        } else {
+                            showAlert('error', response.message || 'Save failed. Please check the form data.');
+                        }
+                    },
+                    error: function (xhr) {
+                        $('#saveBtn').prop('disabled', false).text('Save');
+
+                        if (xhr.status === 400) {
+                            $('#healthFormContainer').html(xhr.responseText);
+                            showAlert('error', 'Please correct the validation errors and try again.');
+                        } else if (xhr.status === 405) {
+                            showAlert('error', 'Method not allowed. Please check the server configuration.');
+                        } else {
+                            showAlert('error', 'An error occurred while saving. Please try again.');
+                        }
+                    }
+                });
+            });
+
+            $("#empNoInput").autocomplete({
+                source: function (request, response) {
+                    $.ajax({
+                        url: '@Url.Action("SearchEmployeeNos", "EmployeeHealthProfile")',
+                        data: { term: request.term },
+                        success: function (data) {
+                            response(data);
+                        }
+                    });
+                },
+                minLength: 1,
+                select: function (event, ui) {
+                    setTimeout(function () {
+                        loadExamDatesForEmployee(ui.item.value);
+                    }, 100);
+                }
+            });
+
+            $(document).on('submit', '#healthForm', function (e) {
+                e.preventDefault();
+                $('#saveBtn').click();
+            });
+
+            $(document).on('click', '#cancelBtn', function () {
+                $('#healthFormContainer').empty();
+                $('#basicInfo').hide();
+                $('#ExamDate').empty().append('<option value="">-- New Entry (Current Date) --</option>');
+            });
+
+            $('#empNoInput').on('blur', function () {
+                var empNo = $(this).val();
+                if (empNo && empNo > 0) {
+                    loadExamDatesForEmployee(empNo);
+                }
+            });
+        });
+
+                // Reset form inside health form container
+        $(document).on('click', '#btnResetForm', function () {
+            const form = $('#healthForm');
+            if (form.length) {
+                form[0].reset();
+                form.find('.is-invalid').removeClass('is-invalid');
+            }
+        });
+
+
+
+        function cancelForm() {
+            $('#healthFormContainer').empty();
+            $('#basicInfo').hide();
+            $('#ExamDate').empty().append('<option value="">-- New Entry (Current Date) --</option>');
+        }
+
+               function showAlert(type, message) {
+            const alertClass = type === 'success' ? 'alert-success' : 'alert-danger';
+            const alertId = 'alert-' + Date.now(); // unique ID for each alert
+            const alertHtml = `
+                <div id="${alertId}" class="alert ${alertClass} alert-dismissible fade show" role="alert">
+                    ${message}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                </div>`;
+
+            $('#alertContainer').html(alertHtml);
+
+            // Auto-dismiss after 4 seconds
+            setTimeout(() => {
+                const alertEl = document.getElementById(alertId);
+                if (alertEl) {
+                    bootstrap.Alert.getOrCreateInstance(alertEl).close();
+                }
+            }, 4000);
+        }
+
+    </script>
+}

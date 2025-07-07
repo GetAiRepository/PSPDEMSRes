@@ -1,0 +1,346 @@
+﻿@model EMS.WebApp.Data.sys_screen_name
+@if (ViewBag.Error != null)
+{
+    <div class="alert alert-warning">
+        @ViewBag.Error
+    </div>
+}
+<form asp-action="@(Model.screen_uid == 0 ? "Create" : "Edit")" method="post" id="SysScreenForm">
+    @Html.AntiForgeryToken()
+    <input asp-for="screen_uid" type="hidden" />
+
+    <div class="row mb-3">
+        <div class="col-md-12">
+            <label asp-for="screen_name" class="form-label">Screen Name <span class="text-danger">*</span></label>
+            <input asp-for="screen_name" class="form-control rounded-2 glass" id="screenNameInput" maxlength="40" placeholder="Enter screen name (e.g., MedBase, MedMaster)" />
+            <div class="d-flex justify-content-between mt-1">
+                <span asp-validation-for="screen_name" class="text-danger" id="screenNameValidation"></span>
+                <small class="text-muted">
+                    <span id="screenNameCharCount">0</span>/40 characters
+                </small>
+            </div>
+        </div>
+    </div>
+
+    <div class="row mb-3">
+        <div class="col-md-12">
+            <label asp-for="screen_description" class="form-label">Description</label>
+            <textarea asp-for="screen_description" class="form-control rounded-2 glass" rows="3" id="screenDescTextarea" maxlength="250" placeholder="Enter screen description (optional)"></textarea>
+            <div class="d-flex justify-content-between mt-1">
+                <span asp-validation-for="screen_description" class="text-danger" id="screenDescValidation"></span>
+                <small class="text-muted">
+                    <span id="charCount">0</span>/250 characters
+                </small>
+            </div>
+        </div>
+    </div>
+
+   
+
+    <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+        <button type="submit" class="btn btn-primary" id="submitBtn">
+            @(Model.screen_uid == 0 ? "Save" : "Update")
+        </button>
+    </div>
+</form>
+
+@section Scripts {
+    @{
+        await Html.RenderPartialAsync("_ValidationScriptsPartial");
+    }
+
+    <script>
+        $(document).ready(function() {
+            // Form elements
+            const screenNameInput = $('#screenNameInput');
+            const screenDescTextarea = $('#screenDescTextarea');
+            const form = $('#SysScreenForm');
+            const submitBtn = $('#submitBtn');
+            const screenUid = $('input[name="screen_uid"]').val();
+
+            // Character count elements
+            const screenNameCharCount = $('#screenNameCharCount');
+            const charCount = $('#charCount');
+
+            // Validation flags
+            let isCheckingScreenName = false;
+            let availableControllers = [];
+
+            // Initialize validation
+            form.removeData("validator");
+            form.removeData("unobtrusiveValidation");
+            $.validator.unobtrusive.parse(form);
+
+            // Security patterns to check for
+            const dangerousPatterns = [
+                /<script[^>]*>.*?<\/script>/gi,
+                /javascript:/gi,
+                /vbscript:/gi,
+                /on\w+\s*=/gi,
+                /<iframe/gi,
+                /<object/gi,
+                /<embed/gi,
+                /<form/gi,
+                /eval\s*\(/gi,
+                /expression\s*\(/gi
+            ];
+
+            // Function to check for dangerous input
+            function containsDangerousInput(text) {
+                if (!text) return false;
+                return dangerousPatterns.some(pattern => pattern.test(text));
+            }
+
+            // Load available controllers
+            function loadAvailableControllers() {
+                $.get('@Url.Action("GetAvailableControllers", "SystemScreenMaster")')
+                    .done(function(response) {
+                        availableControllers = response.controllers || [];
+                        displayAvailableControllers();
+                    })
+                    .fail(function() {
+                        $('#availableControllers').html('<span class="text-danger">Error loading controllers</span>');
+                    });
+            }
+
+            // Display available controllers as clickable badges
+            function displayAvailableControllers() {
+                const container = $('#availableControllers');
+                container.empty();
+
+                if (availableControllers.length === 0) {
+                    container.html('<span class="text-muted">No controllers found</span>');
+                    return;
+                }
+
+                availableControllers.forEach(function(controller) {
+                    const badge = $(`<span class="badge bg-secondary controller-badge" style="cursor: pointer; margin: 2px;">${controller}</span>`);
+                    badge.on('click', function() {
+                        screenNameInput.val(controller);
+                        updateScreenNameCharCount();
+                        validateScreenName();
+                        updateSubmitButton();
+                    });
+                    container.append(badge);
+                });
+            }
+
+            // Character count functions
+            function updateScreenNameCharCount() {
+                const currentLength = screenNameInput.val().length;
+                screenNameCharCount.text(currentLength);
+                screenNameCharCount.removeClass('text-warning text-danger');
+                if (currentLength > 30 && currentLength < 40) {
+                    screenNameCharCount.addClass('text-warning');
+                } else if (currentLength >= 40) {
+                    screenNameCharCount.addClass('text-danger');
+                }
+            }
+
+            function updateCharCount() {
+                const currentLength = screenDescTextarea.val().length;
+                charCount.text(currentLength);
+                charCount.removeClass('text-warning text-danger');
+                if (currentLength > 200 && currentLength < 250) {
+                    charCount.addClass('text-warning');
+                } else if (currentLength >= 250) {
+                    charCount.addClass('text-danger');
+                }
+            }
+
+            // Validation functions
+            function validateScreenName() {
+                const screenName = screenNameInput.val().trim();
+                const validationSpan = $('#screenNameValidation');
+                let isValid = true;
+
+                validationSpan.text('').removeClass('field-validation-error').hide();
+                screenNameInput.removeClass('is-invalid');
+
+                if (!screenName) {
+                    validationSpan.text('Screen Name is required.')
+                                 .addClass('field-validation-error text-danger')
+                                 .show();
+                    screenNameInput.addClass('is-invalid');
+                    isValid = false;
+                } else if (screenName.length < 2) {
+                    validationSpan.text('Screen Name must be at least 2 characters.')
+                                 .addClass('field-validation-error text-danger')
+                                 .show();
+                    screenNameInput.addClass('is-invalid');
+                    isValid = false;
+                } else if (screenName.length > 40) {
+                    validationSpan.text('Screen Name cannot exceed 40 characters.')
+                                 .addClass('field-validation-error text-danger')
+                                 .show();
+                    screenNameInput.addClass('is-invalid');
+                    isValid = false;
+                } else if (containsDangerousInput(screenName)) {
+                    validationSpan.text('Screen Name contains invalid characters. Script tags and unsafe characters are not allowed.')
+                                 .addClass('field-validation-error text-danger')
+                                 .show();
+                    screenNameInput.addClass('is-invalid');
+                    isValid = false;
+                } else if (!/^[a-zA-Z][a-zA-Z0-9]*$/.test(screenName)) {
+                    validationSpan.text('Screen Name must start with a letter and contain only letters and numbers.')
+                                 .addClass('field-validation-error text-danger')
+                                 .show();
+                    screenNameInput.addClass('is-invalid');
+                    isValid = false;
+                } else if (availableControllers.length > 0 && !availableControllers.includes(screenName)) {
+                    validationSpan.text('Screen with this name does not exist. Please select from available controllers above.')
+                                 .addClass('field-validation-error text-danger')
+                                 .show();
+                    screenNameInput.addClass('is-invalid');
+                    isValid = false;
+                }
+
+                return isValid;
+            }
+
+            function validateDescription() {
+                const description = screenDescTextarea.val();
+                const validationSpan = $('#screenDescValidation');
+                let isValid = true;
+
+                validationSpan.text('').removeClass('field-validation-error').hide();
+                screenDescTextarea.removeClass('is-invalid');
+
+                if (description && description.length > 250) {
+                    validationSpan.text('Description cannot exceed 250 characters.')
+                                 .addClass('field-validation-error text-danger')
+                                 .show();
+                    screenDescTextarea.addClass('is-invalid');
+                    isValid = false;
+                } else if (containsDangerousInput(description)) {
+                    validationSpan.text('Description contains invalid characters. Script tags and unsafe characters are not allowed.')
+                                 .addClass('field-validation-error text-danger')
+                                 .show();
+                    screenDescTextarea.addClass('is-invalid');
+                    isValid = false;
+                }
+
+                return isValid;
+            }
+
+            // Real-time validation for screen name uniqueness
+            function checkScreenNameUniqueness() {
+                const screenName = screenNameInput.val().trim();
+                const validationSpan = $('#screenNameValidation');
+
+                if (!screenName || !validateScreenName()) {
+                    updateSubmitButton();
+                    return;
+                }
+
+                if (isCheckingScreenName) return;
+
+                isCheckingScreenName = true;
+                submitBtn.prop('disabled', true);
+
+                $.post('@Url.Action("CheckScreenNameExists", "SystemScreenMaster")', {
+                    screenName: screenName,
+                    screenUid: screenUid || null
+                })
+                .done(function(response) {
+                    if (response.exists) {
+                        validationSpan.text('A screen with this name already exists. Please choose a different name.')
+                                     .addClass('field-validation-error text-danger')
+                                     .show();
+                        screenNameInput.addClass('is-invalid');
+                        submitBtn.prop('disabled', true);
+                    } else {
+                        if (validateScreenName()) {
+                            validationSpan.text('').removeClass('field-validation-error').hide();
+                            screenNameInput.removeClass('is-invalid');
+                        }
+                        updateSubmitButton();
+                    }
+                })
+                .fail(function() {
+                    console.log('Error checking screen name uniqueness');
+                    updateSubmitButton();
+                })
+                .always(function() {
+                    isCheckingScreenName = false;
+                });
+            }
+
+            function updateSubmitButton() {
+                const hasErrors = $('.field-validation-error:visible').length > 0 ||
+                                $('.is-invalid').length > 0 ||
+                                isCheckingScreenName;
+                submitBtn.prop('disabled', hasErrors);
+            }
+
+            // Event handlers
+            screenNameInput.on('input keyup paste', function() {
+                updateScreenNameCharCount();
+                validateScreenName();
+                updateSubmitButton();
+            });
+
+            screenDescTextarea.on('input keyup paste', function() {
+                updateCharCount();
+                validateDescription();
+                updateSubmitButton();
+            });
+
+            // Debounced screen name uniqueness check
+            let nameCheckTimeout;
+            screenNameInput.on('input keyup', function() {
+                clearTimeout(nameCheckTimeout);
+                nameCheckTimeout = setTimeout(checkScreenNameUniqueness, 800);
+            });
+
+            // Initialize on page load
+            loadAvailableControllers();
+            updateScreenNameCharCount();
+            updateCharCount();
+            validateScreenName();
+            validateDescription();
+            updateSubmitButton();
+
+            // Prevent form submission if validation fails
+            form.on('submit', function(e) {
+                if (!validateScreenName() || !validateDescription() || isCheckingScreenName) {
+                    e.preventDefault();
+                    return false;
+                }
+
+                // Final check for any visible errors
+                if ($('.field-validation-error:visible').length > 0) {
+                    e.preventDefault();
+                    return false;
+                }
+
+                // Double-check for dangerous input before submission
+                const screenName = screenNameInput.val().trim();
+                const description = screenDescTextarea.val();
+
+                if (containsDangerousInput(screenName) || containsDangerousInput(description)) {
+                    e.preventDefault();
+                    alert('Invalid input detected. Please remove any script tags or unsafe characters.');
+                    return false;
+                }
+            });
+
+            // Prevent pasting of dangerous content
+            function handleDangerousPaste(input, inputName) {
+                input.on('paste', function(e) {
+                    setTimeout(function() {
+                        const pastedContent = input.val();
+                        if (containsDangerousInput(pastedContent)) {
+                            input.val('');
+                            alert('Pasted content in ' + inputName + ' contains unsafe characters and has been removed.');
+                        }
+                    }, 10);
+                });
+            }
+
+            handleDangerousPaste(screenNameInput, 'Screen Name');
+            handleDangerousPaste(screenDescTextarea, 'Description');
+        });
+    </script>
+}

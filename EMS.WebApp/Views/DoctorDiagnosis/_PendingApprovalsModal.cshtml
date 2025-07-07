@@ -1,0 +1,142 @@
+﻿@model List<EMS.WebApp.Data.PendingApprovalViewModel>
+
+@if (Model.Any())
+{
+    <!-- Bulk Actions -->
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <div>
+            <button type="button" class="btn btn-success btn-sm" id="approveAllBtn" disabled>
+                <i class="bi bi-check-all"></i> Approve Selected
+            </button>
+            <button type="button" class="btn btn-outline-secondary btn-sm" id="selectAllBtn">
+                <i class="bi bi-check-square"></i> Select All
+            </button>
+        </div>
+        <div class="text-muted small">
+            <i class="bi bi-info-circle"></i> These are First Aid/Emergency prescriptions requiring approval
+        </div>
+    </div>
+
+    <!-- Prescriptions Table -->
+    <div class="table-responsive">
+        <table class="table table-hover align-middle">
+            <thead class="table-primary">
+                <tr>
+                    <th style="width: 40px;">
+                        <input type="checkbox" id="selectAllCheckbox" class="form-check-input">
+                    </th>
+                    <th>Employee</th>
+                    <th>Department</th>
+                    <th>Prescription Date</th>
+                    <th>Visit Type</th>
+                    <th>Diseases</th>
+                    <th>Medicines</th>
+                    <th>Vitals</th>
+                    <th>Created By</th>
+                    <th style="width: 140px;">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var prescription in Model)
+                {
+                    <tr data-prescription-id="@prescription.PrescriptionId">
+                        <td>
+                            <input type="checkbox" class="form-check-input prescription-checkbox"
+                                   value="@prescription.PrescriptionId">
+                        </td>
+                        <td>
+                            <div>
+                                <strong>@prescription.EmployeeName</strong>
+                                <br><small class="text-muted">ID: @prescription.EmployeeId</small>
+                            </div>
+                        </td>
+                        <td>
+                            <div>
+                                @prescription.Department
+                                <br><small class="text-muted">@prescription.Plant</small>
+                            </div>
+                        </td>
+                        <td>
+                            @prescription.PrescriptionDate.ToString("dd-MMM-yyyy")
+                            <br><small class="text-muted">@prescription.PrescriptionDate.ToString("HH:mm")</small>
+                        </td>
+                        <td>
+                            <span class="badge bg-danger">@prescription.VisitType</span>
+                        </td>
+                        <td>
+                            @if (prescription.Diseases.Any())
+                            {
+                                @foreach (var disease in prescription.Diseases)
+                                {
+                                    <span class="badge bg-info me-1 mb-1">@disease.DiseaseName</span>
+                                }
+                            }
+                            else
+                            {
+                                <span class="text-muted small">No diseases</span>
+                            }
+                        </td>
+                        <td>
+                            @if (prescription.Medicines.Any())
+                            {
+                                <div class="small">
+                                    @foreach (var medicine in prescription.Medicines.Take(2))
+                                    {
+                                        <div>@medicine.MedicineName (@medicine.Quantity)</div>
+                                    }
+                                    @if (prescription.Medicines.Count > 2)
+                                    {
+                                        <small class="text-muted">+@(prescription.Medicines.Count - 2) more...</small>
+                                    }
+                                </div>
+                            }
+                            else
+                            {
+                                <span class="text-muted small">No medicines</span>
+                            }
+                        </td>
+                        <td>
+                            <div class="small">
+                                @if (!string.IsNullOrEmpty(prescription.BloodPressure))
+                                {
+                                    <div>BP: @prescription.BloodPressure</div>
+                                }
+                                @if (!string.IsNullOrEmpty(prescription.Pulse))
+                                {
+                                    <div>Pulse: @prescription.Pulse</div>
+                                }
+                                @if (!string.IsNullOrEmpty(prescription.Temperature))
+                                {
+                                    <div>Temp: @prescription.Temperature</div>
+                                }
+                            </div>
+                        </td>
+                        <td>
+                            <span class="small">@prescription.CreatedBy</span>
+                        </td>
+                        <td>
+                            <div class="btn-group-vertical btn-group-sm w-100">
+                                <button type="button" class="btn btn-success btn-sm approve-btn"
+                                        data-prescription-id="@prescription.PrescriptionId">
+                                    <i class="bi bi-check-circle"></i> Approve
+                                </button>
+                                <button type="button" class="btn btn-danger btn-sm reject-btn"
+                                        data-prescription-id="@prescription.PrescriptionId">
+                                    <i class="bi bi-x-circle"></i> Reject
+                                </button>
+                            </div>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+}
+else
+{
+    <div class="text-center py-5">
+        <i class="bi bi-check-circle text-success" style="font-size: 3rem;"></i>
+        <h5 class="mt-3">No Pending Approvals</h5>
+        <p class="text-muted">All emergency prescriptions have been reviewed.</p>
+    </div>
+}

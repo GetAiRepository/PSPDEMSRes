@@ -1,0 +1,21 @@
+﻿@model EMS.WebApp.Data.org_department
+
+<div class="row mb-3">
+    <div class="col-md-12">
+        <label class="form-label">Department Name</label>
+        <input class="form-control rounded-2" value="@Model.dept_name" readonly />
+    </div>>
+    <div class="col-md-12">
+        <label class="form-label"> Description</label>
+            <textarea class="form-control rounded-2" rows="3" readonly>@Model.dept_description</textarea>
+            
+    </div>
+
+    <div class="col-md-12">
+        <label class="form-label">Remarks</label>
+            <textarea class="form-control rounded-2" rows="3" readonly>@Model.Remarks</textarea>
+    </div>
+</div>
+<div class="text-end">
+    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+</div>

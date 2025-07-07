@@ -1,0 +1,115 @@
+﻿@{
+    ViewData["Title"] = "Medical Examination Category";
+}
+
+<div id="alertPlaceholder" class="mb-3"></div>
+
+<div class="d-flex justify-content-end mb-3">
+    <button id="btnCreate" class="btn btn-primary">Add New</button>
+</div>
+
+<table id="tblExamCat" class="table table-glass glass-table">
+    <thead>
+        <tr>
+            <th>ID</th>
+            <th>Name</th>
+            <th>Freq (yrs)</th>
+            <th>Rule</th>
+            <th>Schedule</th>
+            <th style="width:130px">Actions</th>
+        </tr>
+    </thead>
+    <tbody></tbody>
+</table>
+
+<div class="modal fade" id="modalExamCat" tabindex="-1">
+    <div class="modal-dialog modal-xl modal-dialog-centered">
+        <div class="modal-content glass">
+            <div class="modal-header">
+                <h5 class="modal-title"></h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body" id="modalBody"></div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+                $(function () {
+          const modalEl = $('#modalExamCat');
+          modalEl.appendTo('body');
+          modalEl.modal({ backdrop: 'static', keyboard: false, show: false });
+
+          var tbl = $('#tblExamCat').DataTable({
+            ajax: { url: '@Url.Action("LoadData")', dataSrc: 'data' },
+            columns: [
+              { data: 'catId' },
+              { data: 'catName' },
+              { data: 'yearsFreq' },
+              { data: 'annuallyRule' },
+              { data: 'monthsSched' },
+              {
+                data: 'catId',
+                render: id => `
+                  <button class="btn btn-sm btn-info view me-1" data-id="${id}">View</button>
+                  <button class="btn btn-sm btn-secondary edit me-1" data-id="${id}">Edit</button>
+                  <button class="btn btn-sm btn-danger delete" data-id="${id}">Del</button>`
+              }
+            ]
+          });
+
+          $('#btnCreate').click(() => {
+            $.get('@Url.Action("Create")').done(html => {
+              modalEl.find('.modal-title').text('Add Exam Category');
+              $('#modalBody').html(html);
+              modalEl.modal('show');
+            });
+          });
+
+          $('#tblExamCat').on('click', '.edit', function () {
+            const id = $(this).data('id');
+            $.get(`@Url.Action("Edit")/${id}`).done(html => {
+              modalEl.find('.modal-title').text('Edit Exam Category');
+              $('#modalBody').html(html);
+              modalEl.modal('show');
+            });
+          });
+
+          $('#tblExamCat').on('click', '.view', function (e) {
+            if ($(e.target).is('button')) {
+              const id = $(this).data('id');
+              $.get(`@Url.Action("Details")/${id}`).done(html => {
+                modalEl.find('.modal-title').text('View Exam Category');
+                $('#modalBody').html(html);
+                modalEl.modal('show');
+              });
+            }
+          });
+
+          modalEl.on('submit', 'form', function (e) {
+            e.preventDefault();
+            const form = $(this);
+            $.post(form.attr('action'), form.serialize()).done(res => {
+              if (res.success) {
+                modalEl.modal('hide');
+                tbl.ajax.reload(null, false);
+                showAlert('success', 'Saved successfully.');
+              } else {
+                $('#modalBody').html(res);
+              }
+            });
+          });
+
+          $('#tblExamCat').on('click', '.delete', function () {
+            if (!confirm('Delete this?')) return;
+            const id = $(this).data('id');
+            $.post('@Url.Action("Delete")', { id }).done(() => {
+              tbl.ajax.reload(null, false);
+              showAlert('warning', 'Deleted.');
+            });
+          });
+        });
+
+    </script>
+}

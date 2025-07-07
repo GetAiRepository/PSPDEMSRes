@@ -1,0 +1,137 @@
+﻿@{
+    ViewData["Title"] = "Employee Master";
+}
+<div class="d-flex justify-content-end mb-3">
+    <button id="btnCreate" class="btn btn-primary">+ Add Employee</button>
+</div>
+<table id="tblEmployee" class="table table-striped table-glass glass-table">
+    <thead>
+        <tr>
+            <th>Sl.No</th>
+            <th>Employee Id</th>
+            <th>Name</th>
+            <th>DOB </th>
+            <th>Gender</th>
+            <th>Grade</th>
+            <th>Department Name</th>
+            <th>Plant Name</th>
+            <th>Blood Group</th>
+            <th style="width:120px">Actions</th>
+        </tr>
+    </thead>
+    <tbody></tbody>
+</table>
+
+<!-- Modal -->
+<div class="modal fade" id="modalEmployee" tabindex="-1">
+    <div class="modal-dialog modal-xl modal-dialog-centered">
+        <div class="modal-content glass">
+            <div class="modal-header">
+                <h5 class="modal-title"></h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body" id="modalBody"></div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+                   $(function () {
+          const modalEl = $('#modalEmployee');
+          modalEl.appendTo('body');
+          modalEl.modal({ backdrop: 'static', keyboard: false, show: false });
+
+          const tbl = $('#tblEmployee').DataTable({
+            ajax: { url: '@Url.Action("LoadData")', dataSrc: 'data' },
+            columns: [
+              { data: 'emp_uid' },
+              { data: 'emp_id' },
+              { data: 'emp_name' },
+              { data: 'emp_DOB' },
+              {
+                data: 'emp_Gender',
+                render: function (data) {
+                  if (data === 'M') return 'Male';
+                  if (data === 'F') return 'Female';
+                  if (data === 'O') return 'Other';
+                  return data;
+                }
+              },
+              { data: 'emp_Grade' },
+              { data: 'dept_name' },
+              { data: 'plant_name' },
+              { data: 'emp_blood_Group' },
+              {
+                data: 'emp_uid',
+                render: id => `
+                  <button class="btn btn-sm btn-info view me-1" data-id="${id}">View</button>
+                  <button class="btn btn-sm btn-secondary edit me-1" data-id="${id}">Edit</button>
+                  <button class="btn btn-sm btn-danger delete" data-id="${id}">Del</button>`
+              }
+            ]
+          });
+
+          // Create
+          $('#btnCreate').click(() => {
+            $.get('@Url.Action("Create")').done(html => {
+              modalEl.find('.modal-title').text('Add Employee');
+              $('#modalBody').html(html);
+              modalEl.modal('show');
+            });
+          });
+
+          // Edit
+          $('#tblEmployee').on('click', '.edit', function () {
+            const id = $(this).data('id');
+            $.get(`@Url.Action("Edit")/${id}`).done(html => {
+              modalEl.find('.modal-title').text('Edit Employee');
+              $('#modalBody').html(html);
+              modalEl.modal('show');
+            });
+          });
+
+          // View
+          $('#tblEmployee').on('click', '.view', function (e) {
+            if ($(e.target).is('button')) {
+              const id = $(this).data('id');
+              $.get(`@Url.Action("Details")/${id}`).done(html => {
+                modalEl.find('.modal-title').text('View Employee Master');
+                $('#modalBody').html(html);
+                modalEl.modal('show');
+              });
+            }
+          });
+
+          // Submit create/edit
+          modalEl.on('submit', 'form', function (e) {
+            e.preventDefault();
+            const form = $(this);
+            $.post(form.attr('action'), form.serialize()).done(res => {
+              if (res.success) {
+                modalEl.modal('hide');
+                tbl.ajax.reload(null, false);
+
+                const isCreate = form.attr('action').endsWith('Create');
+                showAlert('success', isCreate ? 'New Employee record created successfully.' : 'Employee record updated successfully.');
+              } else {
+                $('#modalBody').html(res);
+              }
+            });
+          });
+
+          // Delete
+          $('#tblEmployee').on('click', '.delete', function () {
+            if (!confirm('Delete this?')) return;
+            const id = $(this).data('id');
+            $.post('@Url.Action("Delete")', { id }).done(() => {
+              tbl.ajax.reload(null, false);
+              showAlert('warning', 'Employee record deleted.');
+            });
+          });
+        });
+
+
+
+    </script>
+}

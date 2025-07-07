@@ -1,0 +1,302 @@
+﻿@* Create this file: Views/DoctorDiagnosis/_PrescriptionModal.cshtml *@
+
+<!-- Prescription Modal - Clean Partial View -->
+<div class="modal fade" id="prescriptionModal" tabindex="-1" aria-labelledby="prescriptionModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-xl modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="prescriptionModalLabel">
+                    <i class="bi bi-file-medical"></i> Prescription
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <!-- Disease Selection -->
+                <div class="row g-3 mb-4">
+                    <div class="col-lg-6">
+                        <label class="form-label fw-bold" for="diseaseSelect">
+                            <i class="bi bi-clipboard-pulse"></i> Disease Diagnosed
+                        </label>
+                        <select id="diseaseSelect" class="form-select" multiple size="5" required>
+                            <option disabled>Loading diseases...</option>
+                        </select>
+                        <div class="form-text">Hold Ctrl to select multiple diseases</div>
+                    </div>
+                    <div class="col-lg-6">
+                        <label class="form-label fw-bold">
+                            <i class="bi bi-capsule"></i> Add Medicine
+                        </label>
+                        <div class="d-grid">
+                            <button class="btn btn-outline-primary" type="button" id="btnAddMedRx">
+                                <i class="bi bi-plus-circle"></i> Add Medicine Row
+                            </button>
+                        </div>
+                        <div class="form-text">Add medicines with dosage instructions</div>
+                    </div>
+                </div>
+
+                <!-- Medicine Table -->
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle" id="tblRxMeds">
+                        <thead class="table-primary">
+                            <tr>
+                                <th style="width:60px">#</th>
+                                <th>Medicine Name</th>
+                                <th style="width:120px">Quantity</th>
+                                <th style="width:150px">Dosage</th>
+                                <th style="width:90px">Action</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr id="noMedicineRow">
+                                <td colspan="5" class="text-center text-muted">
+                                    <i class="bi bi-info-circle"></i> No medicines added yet. Click "Add Medicine Row" to start.
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">
+                    <i class="bi bi-x-circle"></i> Cancel
+                </button>
+                <button type="button" class="btn btn-success" id="savePrescriptionBtn">
+                    <i class="bi bi-check-circle"></i> Save Prescription
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    /* Modal-specific styles */
+    #prescriptionModal .modal-content {
+        border: none;
+        box-shadow: 0 1rem 3rem rgba(0, 0, 0, 0.175);
+    }
+
+    #prescriptionModal .modal-header {
+        background: linear-gradient(135deg, #007bff, #0056b3);
+        color: white;
+        border-radius: 0.375rem 0.375rem 0 0;
+    }
+
+        #prescriptionModal .modal-header .btn-close {
+            filter: invert(1);
+        }
+
+    #prescriptionModal .modal-body {
+        background: #f8f9fa;
+    }
+
+    #prescriptionModal .modal-footer {
+        background: white;
+        border-top: 2px solid #e9ecef;
+    }
+
+    #diseaseSelect {
+        min-height: 120px;
+        border: 2px solid #007bff;
+    }
+
+        #diseaseSelect:focus {
+            border-color: #0056b3;
+            box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
+        }
+
+    #tblRxMeds {
+        background: white;
+        border-radius: 0.375rem;
+        overflow: hidden;
+    }
+
+        #tblRxMeds thead th {
+            border: none;
+            font-weight: 600;
+        }
+
+    #btnAddMedRx {
+        border: 2px dashed #007bff;
+        transition: all 0.3s ease;
+    }
+
+        #btnAddMedRx:hover {
+            background: #007bff;
+            border-color: #007bff;
+            color: white;
+        }
+</style>
+
+<script>
+    // Partial view specific JavaScript
+    $(document).ready(function() {
+        // Enhanced add medicine row with better styling
+        $('#btnAddMedRx').on('click', function() {
+            addMedicineRowEnhanced();
+        });
+
+        // Enhanced save with validation
+        $('#savePrescriptionBtn').on('click', function() {
+            savePrescriptionEnhanced();
+        });
+
+        // Modal events
+        $('#prescriptionModal').on('shown.bs.modal', function() {
+            console.log('🏥 Prescription modal opened');
+            if ($('#diseaseSelect option').length <= 1) {
+                showAlert('warning', 'Loading prescription data...');
+            }
+        });
+    });
+
+    function addMedicineRowEnhanced() {
+        const tbody = $('#tblRxMeds tbody');
+
+        // Remove "no medicine" row if it exists
+        $('#noMedicineRow').remove();
+
+        const idx = tbody.children().length + 1;
+
+        var medicineOptions = '<option value="">-- Select Medicine --</option>';
+        if (prescriptionData.medicines && prescriptionData.medicines.length > 0) {
+            prescriptionData.medicines.forEach(function (medicine) {
+                medicineOptions += `<option value="${medicine.value}">${medicine.text}</option>`;
+            });
+        }
+
+        const tr = $(`
+            <tr class="medicine-row">
+                <td class="text-center fw-bold">${idx}</td>
+                <td>
+                    <select class="form-select form-select-sm medicine-select" name="medicineId" required>
+                        ${medicineOptions}
+                    </select>
+                </td>
+                <td>
+                    <input class="form-control form-control-sm text-center" name="quantity" type="number" min="1" max="999" placeholder="0" required />
+                </td>
+                <td>
+                    <input class="form-control form-control-sm" name="dose" placeholder="e.g. 1-0-1 (Morning-Afternoon-Evening)" required />
+                </td>
+                <td class="text-center">
+                    <button class="btn btn-sm btn-outline-danger" type="button" onclick="removeMedicineRowEnhanced(this)" title="Remove this medicine">
+                        <i class="bi bi-trash"></i>
+                    </button>
+                </td>
+            </tr>
+        `);
+
+        tbody.append(tr);
+
+        // Focus on the medicine select
+        tr.find('.medicine-select').focus();
+
+        console.log('✅ Medicine row added. Total:', tbody.children().length);
+    }
+
+    function removeMedicineRowEnhanced(button) {
+        const tbody = $('#tblRxMeds tbody');
+        $(button).closest('tr').remove();
+
+        // Update row numbers
+        tbody.find('tr.medicine-row').each(function(index) {
+            $(this).find('td:first').text(index + 1);
+        });
+
+        // Add "no medicine" row if empty
+        if (tbody.children().length === 0) {
+            tbody.append(`
+                <tr id="noMedicineRow">
+                    <td colspan="5" class="text-center text-muted">
+                        <i class="bi bi-info-circle"></i> No medicines added yet. Click "Add Medicine Row" to start.
+                    </td>
+                </tr>
+            `);
+        }
+
+        console.log('🗑️ Medicine row removed');
+    }
+
+    function savePrescriptionEnhanced() {
+        const selectedDiseases = $('#diseaseSelect').val() || [];
+        const medicines = [];
+
+        // Enhanced validation
+        if (selectedDiseases.length === 0) {
+            showAlert('error', 'Please select at least one disease.');
+            $('#diseaseSelect').focus();
+            return;
+        }
+
+        // Collect medicine data with validation
+        let hasValidMedicine = false;
+        $('#tblRxMeds tbody tr.medicine-row').each(function () {
+            const $row = $(this);
+            const medicineId = $row.find('[name="medicineId"]').val();
+            const quantity = $row.find('[name="quantity"]').val();
+            const dose = $row.find('[name="dose"]').val();
+
+            if (medicineId && quantity && dose) {
+                medicines.push({
+                    MedItemId: parseInt(medicineId),
+                    Quantity: parseInt(quantity),
+                    Dose: dose,
+                    MedicineName: $row.find('[name="medicineId"] option:selected').text()
+                });
+                hasValidMedicine = true;
+            }
+        });
+
+        if (!hasValidMedicine) {
+            showAlert('error', 'Please add at least one complete medicine entry.');
+            return;
+        }
+
+        // Show loading state
+        const saveBtn = $('#savePrescriptionBtn');
+        const originalText = saveBtn.html();
+        saveBtn.html('<i class="bi bi-hourglass-split"></i> Saving...').prop('disabled', true);
+
+        console.log('💾 Saving prescription:', { diseases: selectedDiseases, medicines: medicines });
+
+        // Your existing save AJAX call here
+        $.ajax({
+            url: '@Url.Action("SavePrescription", "DoctorDiagnosis")',
+            type: 'POST',
+            data: {
+                empId: currentEmpId,
+                examDate: $('#examDate').val(),
+                selectedDiseases: selectedDiseases,
+                medicines: medicines,
+                bloodPressure: $('#bloodPressure').val(),
+                pulse: $('#pulse').val(),
+                temperature: $('#temperature').val()
+            },
+            success: function (response) {
+                if (response.success) {
+                    showAlert('success', 'Prescription saved successfully!');
+                    $('#prescriptionModal').modal('hide');
+                    // Clear form
+                    $('#diseaseSelect').val([]);
+                    $('#tblRxMeds tbody').html(`
+                        <tr id="noMedicineRow">
+                            <td colspan="5" class="text-center text-muted">
+                                <i class="bi bi-info-circle"></i> No medicines added yet.
+                            </td>
+                        </tr>
+                    `);
+                } else {
+                    showAlert('error', response.message || 'Error saving prescription.');
+                }
+            },
+            error: function () {
+                showAlert('error', 'Network error. Please try again.');
+            },
+            complete: function() {
+                // Reset button
+                saveBtn.html(originalText).prop('disabled', false);
+            }
+        });
+    }
+</script>

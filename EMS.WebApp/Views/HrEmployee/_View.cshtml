@@ -1,0 +1,50 @@
+﻿@model EMS.WebApp.Data.HrEmployee
+
+<div class="row mb-3">
+    <div class="col-md-4">
+        <label class="form-label">Employee Id</label>
+        <input class="form-control rounded-2" value="@Model.emp_id" readonly />
+    </div>
+    <div class="col-md-4">
+        <label class="form-label">Employee Name</label>
+        <input class="form-control rounded-2" rows="3" value="@Model.emp_name" readonly />
+    </div>
+    <div class="col-md-4">
+        <label class="form-label">Employee DOB</label>
+        <input class="form-control rounded-2" rows="3" value="@Model.emp_DOB" readonly />
+    </div>
+</div>
+<div class="row mb-3">
+    <div class="col-md-4">
+        <label class="form-label">Employee Gender</label>
+        @{
+            string genderDisplay = Model.emp_Gender == "M" ? "Male" :
+            Model.emp_Gender == "F" ? "Female" :
+            Model.emp_Gender == "O" ? "Other" : "";
+        }
+
+        <input class="form-control rounded-2" value="@genderDisplay" readonly />
+    </div>
+    <div class="col-md-4">
+        <label class="form-label">Employee Grade</label>
+        <input class="form-control rounded-2" rows="3" value="@Model.emp_Grade" readonly />
+    </div>
+    <div class="col-md-4">
+        <label class="form-label">Department Name </label>
+        <input class="form-control rounded-2" value="@Model.org_department?.dept_name" readonly />
+    </div>
+</div>
+<div class="row mb-3">
+    
+    <div class="col-md-4">
+        <label class="form-label">Plant Name</label>
+        <input class="form-control rounded-2" value="@Model.org_plant?.plant_name" readonly />
+    </div>
+    <div class="col-md-4">
+        <label class="form-label">Blood Group </label>
+        <input class="form-control rounded-2" rows="3" value="@Model.emp_blood_Group" readonly />
+    </div>
+</div>
+<div>
+    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+</div>
